@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>O Faroleiro</title>
+<style>
+  body { background: #05080f; color: #d0e1f9; font-family: monospace; text-align: center; margin: 0; padding: 15px; user-select: none; }
+  h1 { color: #ffdd57; margin: 5px 0; text-shadow: 0 0 10px #ffaa00; }
+  canvas { background: #0a1122; border: 2px solid #283655; display: block; margin: 10px auto; max-width: 95vw; }
+  .painel { background: #111b33; border: 2px solid #4d648d; max-width: 500px; margin: 10px auto; padding: 15px; border-radius: 8px; }
+  button { background: #ffaa00; color: #05080f; border: none; padding: 10px 18px; font-weight: bold; font-family: inherit; cursor: pointer; border-radius: 5px; font-size: 15px; }
+  button:active { transform: scale(0.95); }
+  input[type=range] { width: 80%; margin: 10px 0; accent-color: #00ffcc; }
+  #msg { color: #00ffcc; min-height: 22px; font-weight: bold; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h1>🔦 O FAROLEIRO</h1>
+  <div>Hora: <b id="hora">00:00</b> / 06:00 | Energia do Farol: <b id="luz">100</b>%</div>
+  <canvas id="c" width="500" height="220"></canvas>
+  <div class="painel">
+    <button onclick="abastecer()">⚡ ABASTECER GERADOR (+25%)</button>
+    <hr style="border-color:#283655; margin:12px 0;">
+    <div>📻 RÁDIO: <b id="freqAtual">90.0</b> MHz | Alvo: <b id="freqAlvo" style="color:#ff2a55">---</b></div>
+    <input type="range" id="dial" min="88" max="108" step="0.5" value="90" oninput="checarRadio()">
+    <div id="msg">Mantenha a luz acesa até amanhecer...</div>
+  </div>
+
+<script>
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+let luz = 100, min = 0, ang = 0, alvo = 0, sintonizado = false, fim = false;
+const sinais = [
+  "S.O.S... algo gigante está circulando a ilha...",
+  "A luz do farol é a única coisa que mantém eles longe...",
+  "Navio Fantasma: Não apague a torre, faroleiro!",
+  "Sinal desconhecido vindo do fundo do oceano..."
+];
+
+function abastecer() {
+  if (fim) { location.reload(); return; }
+  luz = Math.min(100, luz + 25);
+  document.getElementById('luz').innerText = Math.floor(luz);
+}
+
+function novoSinal() {
+  alvo = (Math.floor(Math.random() * 40) * 0.5 + 88).toFixed(1);
+  sintonizado = false;
+  document.getElementById('freqAlvo').innerText = "SINAL DETECTADO!";
+  document.getElementById('msg').style.color = "#ffaa00";
+  document.getElementById('msg').innerText = "Gire o botão do rádio para achar o sinal!";
+}
+
+function checarRadio() {
+  const val = parseFloat(document.getElementById('dial').value).toFixed(1);
+  document.getElementById('freqAtual').innerText = val;
+  if (!sintonizado && alvo > 0 && Math.abs(val - alvo) <= 0.5) {
+    sintonizado = true;
+    alvo = 0;
+    document.getElementById('freqAlvo').innerText = "SINTONIZADO";
+    document.getElementById('msg').style.color = "#00ffcc";
+    document.getElementById('msg').innerText = "📻 " + sinais[Math.floor(Math.random() * sinais.length)];
+  }
+}
+
+setInterval(() => {
+  if (fim) return;
+  min += 5;
+  luz -= (alvo > 0 ? 2.2 : 1.1);
+  if (min % 60 === 0 && alvo === 0) novoSinal();
+  
+  let h = String(Math.floor(min / 60)).padStart(2, '0');
+  let m = String(min % 60).padStart(2, '0');
+  document.getElementById('hora').innerText = `${h}:${m}`;
+  document.getElementById('luz').innerText = Math.max(0, Math.floor(luz));
+
+  if (luz <= 0) {
+    fim = true;
+    document.getElementById('msg').style.color = "#ff2a55";
+    document.getElementById('msg').innerText = "A LUZ APAGOU! Algo subiu no penhasco... (Clique em Abastecer para reiniciar)";
+  } else if (min >= 360) {
+    fim = true;
+    document.getElementById('msg').style.color = "#00ff66";
+    document.getElementById('msg').innerText = "☀️ AMANHECEU! Você sobreviveu à noite no farol!";
+  }
+}, 800);
+
+function desenhar() {
+  ctx.clearRect(0, 0, c.width, c.height);
+  // Mar e Penhasco
+  ctx.fillStyle = "#061a3a"; ctx.fillRect(0, 170, c.width, 50);
+  ctx.fillStyle = "#1c2331"; ctx.fillRect(0, 140, 90, 80);
+  // Torre do Farol
+  ctx.fillStyle = "#e0e0e0"; ctx.fillRect(30, 50, 30, 90);
+  ctx.fillStyle = "#ff2a55"; ctx.fillRect(30, 75, 30, 20); ctx.fillRect(30, 115, 30, 20);
+  // Feixe de Luz
+  if (luz > 0) {
+    ang += 0.03;
+    ctx.fillStyle = `rgba(255, 221, 87, ${luz / 180})`;
+    ctx.beginPath(); ctx.moveTo(45, 45);
+    ctx.lineTo(500, 120 + Math.sin(ang) * 90);
+    ctx.lineTo(500, 180 + Math.sin(ang) * 90);
+    ctx.fill();
+  } else {
+    // Olhos no escuro
+    ctx.fillStyle = "#ff2a55";
+    ctx.fillRect(250, 155, 5, 5); ctx.fillRect(265, 155, 5, 5);
+  }
+  requestAnimationFrame(desenhar);
+}
+desenhar();
+</script>
+</body>
+</html>
