@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mundos Espelhados</title>
+  <style>
+    body {
+      margin: 0; background: #0b0b12; color: #fff;
+      font-family: monospace; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; height: 100vh; user-select: none;
+    }
+    h1 { color: #00ffcc; margin: 5px 0; text-shadow: 2px 2px #ff007f; }
+    #placar { font-size: 18px; margin-bottom: 10px; }
+    canvas { background: #161625; border: 3px solid #00ffcc; max-width: 95vw; }
+    button {
+      margin-top: 12px; padding: 14px 32px; font-size: 18px; font-weight: bold;
+      background: #ff007f; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>MUNDOS ESPELHADOS</h1>
+  <div id="placar">Pontos: <span id="pts">0</span> | Recorde: <span id="rec">0</span></div>
+  <canvas id="c" width="600" height="320"></canvas>
+  <button id="btn">⬆ PULAR (ESPAÇO)</button>
+
+  <script>
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    const elPts = document.getElementById('pts'), elRec = document.getElementById('rec');
+    const meio = c.height / 2;
+    let rec = localStorage.getItem('recEspelho') || 0;
+    elRec.innerText = rec;
+
+    let p1 = { x: 70, y: meio - 25, w: 22, h: 25, vy: 0, pulos: 0 };
+    let p2 = { x: 70, y: meio, w: 22, h: 25, vy: 0, pulos: 0 };
+    let obs = [], pts = 0, fim = false, frame = 0, vel = 5;
+
+    function pular() {
+      if (fim) {
+        obs = []; pts = 0; vel = 5; fim = false; elPts.innerText = 0;
+        p1.y = meio - 25; p1.vy = 0; p1.pulos = 0;
+        p2.y = meio; p2.vy = 0; p2.pulos = 0;
+        loop(); return;
+      }
+      if (p1.pulos < 2) { p1.vy = -9.5; p1.pulos++; }
+      if (p2.pulos < 2) { p2.vy = 9.5; p2.pulos++; }
+    }
+
+    document.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); pular(); } });
+    document.getElementById('btn').onclick = pular;
+    c.onclick = pular;
+
+    function loop() {
+      if (fim) return;
+      ctx.clearRect(0, 0, c.width, c.height);
+
+      // Linha divisória laser
+      ctx.fillStyle = '#00ffcc';
+      ctx.fillRect(0, meio - 2, c.width, 4);
+
+      // Física P1 (Cima - Azul)
+      p1.vy += 0.55; p1.y += p1.vy;
+      if (p1.y >= meio - p1.h) { p1.y = meio - p1.h; p1.vy = 0; p1.pulos = 0; }
+
+      // Física P2 (Baixo - Vermelho)
+      p2.vy -= 0.55; p2.y += p2.vy;
+      if (p2.y <= meio) { p2.y = meio; p2.vy = 0; p2.pulos = 0; }
+
+      ctx.fillStyle = '#00bfff'; ctx.fillRect(p1.x, p1.y, p1.w, p1.h);
+      ctx.fillStyle = '#ff2a55'; ctx.fillRect(p2.x, p2.y, p2.w, p2.h);
+
+      // Criar obstáculos assimétricos
+      frame++;
+      if (frame % Math.max(45, 85 - Math.floor(pts / 2)) === 0) {
+        const tipo = Math.floor(Math.random() * 3); // 0=cima, 1=baixo, 2=ambos
+        const h = 25 + Math.random() * 20;
+        if (tipo === 0 || tipo === 2) obs.push({ x: c.width, y: meio - h, w: 20, h: h, lado: 1 });
+        if (tipo === 1 || tipo === 2) obs.push({ x: c.width, y: meio, w: 20, h: h, lado: 2 });
+      }
+
+      for (let i = obs.length - 1; i >= 0; i--) {
+        let o = obs[i];
+        o.x -= vel;
+        ctx.fillStyle = '#ffdd00';
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+
+        let p = o.lado === 1 ? p1 : p2;
+        if (p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y) {
+          fim = true;
+          if (pts > rec) { rec = pts; localStorage.setItem('recEspelho', rec); elRec.innerText = rec; }
+          ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, c.width, c.height);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 26px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('BATEU! CLIQUE PARA REINICIAR', c.width / 2, meio + 8);
+          return;
+        }
+
+        if (o.x + o.w < 0) {
+          obs.splice(i, 1);
+          pts++; elPts.innerText = pts;
+          vel = Math.min(11, 5 + pts * 0.08);
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
