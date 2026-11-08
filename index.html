@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fábrica de Pixel - Memória Genius</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0b12;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      user-select: none;
+    }
+    h1 { color: #00ffcc; text-shadow: 2px 2px #ff007f; margin-bottom: 8px; text-align: center; }
+    #info { font-size: 18px; margin-bottom: 10px; }
+    #mensagem {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffaa00;
+      height: 28px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    #tabuleiro {
+      display: grid;
+      grid-template-columns: repeat(2, 145px);
+      grid-template-rows: repeat(2, 145px);
+      gap: 15px;
+      background-color: #161625;
+      padding: 20px;
+      border-radius: 20px;
+      border: 4px solid #333;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+    }
+    .botao-cor {
+      border-radius: 15px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: transform 0.1s, opacity 0.1s, box-shadow 0.1s;
+    }
+    .botao-cor:active { transform: scale(0.95); }
+    
+    #verde { background-color: #00ff66; box-shadow: 0 0 10px #00ff66; }
+    #vermelho { background-color: #ff2a55; box-shadow: 0 0 10px #ff2a55; }
+    #amarelo { background-color: #ffdd00; box-shadow: 0 0 10px #ffdd00; }
+    #azul { background-color: #00bfff; box-shadow: 0 0 10px #00bfff; }
+
+    .aceso {
+      opacity: 1 !important;
+      transform: scale(1.05);
+      filter: brightness(1.4);
+      box-shadow: 0 0 30px #fff !important;
+    }
+
+    #btnIniciar {
+      margin-top: 25px;
+      background-color: #00ffcc;
+      color: #111;
+      border: none;
+      padding: 14px 30px;
+      font-size: 18px;
+      font-family: inherit;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #btnIniciar:hover { background-color: #00cca3; }
+    #btnIniciar:disabled { background-color: #444; color: #888; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <h1>MEMÓRIA PIXEL</h1>
+  <div id="info">Nível: <span id="nivel">0</span> | Recorde: <span id="recorde">0</span></div>
+  <div id="mensagem">Clique em JOGAR para começar!</div>
+
+  <div id="tabuleiro">
+    <div class="botao-cor" id="verde" data-cor="0"></div>
+    <div class="botao-cor" id="vermelho" data-cor="1"></div>
+    <div class="botao-cor" id="amarelo" data-cor="2"></div>
+    <div class="botao-cor" id="azul" data-cor="3"></div>
+  </div>
+
+  <button id="btnIniciar">▶ JOGAR</button>
+
+  <script>
+    const botoes = [
+      document.getElementById('verde'),
+      document.getElementById('vermelho'),
+      document.getElementById('amarelo'),
+      document.getElementById('azul')
+    ];
+    const elNivel = document.getElementById('nivel');
+    const elRecorde = document.getElementById('recorde');
+    const elMensagem = document.getElementById('mensagem');
+    const btnIniciar = document.getElementById('btnIniciar');
+
+    // Frequências musicais para cada cor
+    const frequencias = [329.63, 261.63, 220.00, 164.81];
+    let audioCtx = null;
+
+    let sequenciaJogo = [];
+    let sequenciaJogador = [];
+    let nivel = 0;
+    let recorde = localStorage.getItem('recordeGeniusPixel') || 0;
+    let bloqueado = true;
+
+    elRecorde.innerText = recorde;
+
+    function tocarSom(indice, duracao = 300) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequencias[indice];
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duracao / 1000);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duracao / 1000);
+    }
+
+    function tocarSomErro() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 110;
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function piscarBotao(indice) {
+      const btn = botoes[indice];
+      btn.classList.add('aceso');
+      tocarSom(indice, 300);
+      setTimeout(() => btn.classList.remove('aceso'), 300);
+    }
+
+    function proximoNivel() {
+      sequenciaJogador = [];
+      nivel++;
+      elNivel.innerText = nivel;
+      bloqueado = true;
+      elMensagem.style.color = '#ffaa00';
+      elMensagem.innerText = 'Observe a sequência...';
+
+      const novaCor = Math.floor(Math.random() * 4);
+      sequenciaJogo.push(novaCor);
+
+      let i = 0;
+      const velocidade = Math.max(350, 650 - nivel * 20);
+      const intervalo = setInterval(() => {
+        piscarBotao(sequenciaJogo[i]);
+        i++;
+        if (i >= sequenciaJogo.length) {
+          clearInterval(intervalo);
+          setTimeout(() => {
+            bloqueado = false;
+            elMensagem.style.color = '#00ffcc';
+            elMensagem.innerText = 'Sua vez! Repita a sequência';
+          }, 400);
+        }
+      }, velocidade);
+    }
+
+    function verificarClique(indice) {
+      if (bloqueado) return;
+
+      piscarBotao(indice);
+      sequenciaJogador.push(indice);
+
+      const passoAtual = sequenciaJogador.length - 1;
+
+      if (sequenciaJogador[passoAtual] !== sequenciaJogo[passoAtual]) {
+        bloqueado = true;
+        tocarSomErro();
+        elMensagem.style.color = '#ff2a55';
+        elMensagem.innerText = `Errou! Você chegou ao nível ${nivel}`;
+        
+        if (nivel - 1 > recorde) {
+          recorde = nivel - 1;
+          localStorage.setItem('recordeGeniusPixel', recorde);
+          elRecorde.innerText = recorde;
+        }
+
+        btnIniciar.disabled = false;
+        btnIniciar.innerText = '🔄 JOGAR DE NOVO';
+        return;
+      }
+
+      if (sequenciaJogador.length === sequenciaJogo.length) {
+        bloqueado = true;
+        elMensagem.style.color = '#00ff66';
+        elMensagem.innerText = 'Muito bem! Próximo nível...';
+        setTimeout(proximoNivel, 1000);
+      }
+    }
+
+    botoes.forEach((btn, index) => {
+      btn.addEventListener('click', () => verificarClique(index));
+    });
+
+    btnIniciar.addEventListener('click', () => {
+      sequenciaJogo = [];
+      nivel = 0;
+      btnIniciar.disabled = true;
+      proximoNivel();
+    });
+  </script>
+</body>
+</html>
