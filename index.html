@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fábrica de Pixel - Memória Genius</title>
+  <title>Fábrica de Pixel 2.0</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -17,207 +17,312 @@
       min-height: 100vh;
       user-select: none;
     }
-    h1 { color: #00ffcc; text-shadow: 2px 2px #ff007f; margin-bottom: 8px; text-align: center; }
-    #info { font-size: 18px; margin-bottom: 10px; }
-    #mensagem {
-      font-size: 18px;
-      font-weight: bold;
-      color: #ffaa00;
-      height: 28px;
-      margin-bottom: 15px;
-      text-align: center;
-    }
-    #tabuleiro {
-      display: grid;
-      grid-template-columns: repeat(2, 145px);
-      grid-template-rows: repeat(2, 145px);
-      gap: 15px;
+    h1 { margin-bottom: 6px; color: #00ffcc; text-shadow: 2px 2px #ff007f; font-size: 26px; }
+    #placar { font-size: 18px; margin-bottom: 10px; }
+    #statusEscudo { color: #00bfff; font-weight: bold; margin-left: 10px; }
+    canvas {
       background-color: #161625;
-      padding: 20px;
-      border-radius: 20px;
-      border: 4px solid #333;
-      box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+      border: 4px solid #00ffcc;
+      box-shadow: 0 0 25px rgba(0, 255, 204, 0.25);
+      max-width: 95vw;
     }
-    .botao-cor {
-      border-radius: 15px;
-      cursor: pointer;
-      opacity: 0.45;
-      transition: transform 0.1s, opacity 0.1s, box-shadow 0.1s;
+    #controles {
+      margin-top: 12px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
-    .botao-cor:active { transform: scale(0.95); }
-    
-    #verde { background-color: #00ff66; box-shadow: 0 0 10px #00ff66; }
-    #vermelho { background-color: #ff2a55; box-shadow: 0 0 10px #ff2a55; }
-    #amarelo { background-color: #ffdd00; box-shadow: 0 0 10px #ffdd00; }
-    #azul { background-color: #00bfff; box-shadow: 0 0 10px #00bfff; }
-
-    .aceso {
-      opacity: 1 !important;
-      transform: scale(1.05);
-      filter: brightness(1.4);
-      box-shadow: 0 0 30px #fff !important;
-    }
-
-    #btnIniciar {
-      margin-top: 25px;
-      background-color: #00ffcc;
-      color: #111;
+    button {
+      background-color: #ff007f;
+      color: white;
       border: none;
-      padding: 14px 30px;
-      font-size: 18px;
+      padding: 12px 18px;
+      font-size: 16px;
       font-family: inherit;
       font-weight: bold;
-      border-radius: 8px;
       cursor: pointer;
+      border-radius: 6px;
     }
-    #btnIniciar:hover { background-color: #00cca3; }
-    #btnIniciar:disabled { background-color: #444; color: #888; cursor: not-allowed; }
+    #btnAtirar { background-color: #ffaa00; color: #111; }
+    #btnReiniciar { background-color: #00ffcc; color: #111; display: none; }
+    button:active { transform: scale(0.95); }
+    p.dica { margin-top: 10px; font-size: 13px; color: #aaa; text-align: center; }
   </style>
 </head>
 <body>
 
-  <h1>MEMÓRIA PIXEL</h1>
-  <div id="info">Nível: <span id="nivel">0</span> | Recorde: <span id="recorde">0</span></div>
-  <div id="mensagem">Clique em JOGAR para começar!</div>
-
-  <div id="tabuleiro">
-    <div class="botao-cor" id="verde" data-cor="0"></div>
-    <div class="botao-cor" id="vermelho" data-cor="1"></div>
-    <div class="botao-cor" id="amarelo" data-cor="2"></div>
-    <div class="botao-cor" id="azul" data-cor="3"></div>
+  <h1>FÁBRICA DE PIXEL 2.0</h1>
+  <div id="placar">
+    Pontos: <span id="pontos">0</span> | 
+    Recorde: <span id="recorde">0</span>
+    <span id="statusEscudo"></span>
   </div>
+  <canvas id="jogo" width="400" height="500"></canvas>
 
-  <button id="btnIniciar">▶ JOGAR</button>
+  <div id="controles">
+    <button id="btnEsq">◀ ESQ</button>
+    <button id="btnAtirar">🔥 ATIRAR</button>
+    <button id="btnReiniciar">JOGAR DE NOVO</button>
+    <button id="btnDir">DIR ▶</button>
+  </div>
+  <p class="dica">Setas (◀ ▶) para mover | Espaço para atirar<br>🟡 Moeda (+5 pts) | 🔵 Escudo protetor</p>
 
   <script>
-    const botoes = [
-      document.getElementById('verde'),
-      document.getElementById('vermelho'),
-      document.getElementById('amarelo'),
-      document.getElementById('azul')
-    ];
-    const elNivel = document.getElementById('nivel');
+    const canvas = document.getElementById('jogo');
+    const ctx = canvas.getContext('2d');
+    const elPontos = document.getElementById('pontos');
     const elRecorde = document.getElementById('recorde');
-    const elMensagem = document.getElementById('mensagem');
-    const btnIniciar = document.getElementById('btnIniciar');
+    const elEscudo = document.getElementById('statusEscudo');
+    const btnReiniciar = document.getElementById('btnReiniciar');
 
-    // Frequências musicais para cada cor
-    const frequencias = [329.63, 261.63, 220.00, 164.81];
-    let audioCtx = null;
+    let recordeSalvo = localStorage.getItem('recordeFabricaPixel') || 0;
+    elRecorde.innerText = recordeSalvo;
 
-    let sequenciaJogo = [];
-    let sequenciaJogador = [];
-    let nivel = 0;
-    let recorde = localStorage.getItem('recordeGeniusPixel') || 0;
-    let bloqueado = true;
+    let jogador = { x: 180, y: 450, largura: 40, altura: 20, velocidade: 6, escudo: false };
+    let obstaculos = [];
+    let tiros = [];
+    let itens = [];
+    let particulas = [];
+    let pontos = 0;
+    let gameOver = false;
+    let teclas = { esquerda: false, direita: false };
+    let frame = 0;
+    let tempoUltimoTiro = 0;
 
-    elRecorde.innerText = recorde;
-
-    function tocarSom(indice, duracao = 300) {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = frequencias[indice];
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duracao / 1000);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duracao / 1000);
-    }
-
-    function tocarSomErro() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 110;
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.5);
-    }
-
-    function piscarBotao(indice) {
-      const btn = botoes[indice];
-      btn.classList.add('aceso');
-      tocarSom(indice, 300);
-      setTimeout(() => btn.classList.remove('aceso'), 300);
-    }
-
-    function proximoNivel() {
-      sequenciaJogador = [];
-      nivel++;
-      elNivel.innerText = nivel;
-      bloqueado = true;
-      elMensagem.style.color = '#ffaa00';
-      elMensagem.innerText = 'Observe a sequência...';
-
-      const novaCor = Math.floor(Math.random() * 4);
-      sequenciaJogo.push(novaCor);
-
-      let i = 0;
-      const velocidade = Math.max(350, 650 - nivel * 20);
-      const intervalo = setInterval(() => {
-        piscarBotao(sequenciaJogo[i]);
-        i++;
-        if (i >= sequenciaJogo.length) {
-          clearInterval(intervalo);
-          setTimeout(() => {
-            bloqueado = false;
-            elMensagem.style.color = '#00ffcc';
-            elMensagem.innerText = 'Sua vez! Repita a sequência';
-          }, 400);
-        }
-      }, velocidade);
-    }
-
-    function verificarClique(indice) {
-      if (bloqueado) return;
-
-      piscarBotao(indice);
-      sequenciaJogador.push(indice);
-
-      const passoAtual = sequenciaJogador.length - 1;
-
-      if (sequenciaJogador[passoAtual] !== sequenciaJogo[passoAtual]) {
-        bloqueado = true;
-        tocarSomErro();
-        elMensagem.style.color = '#ff2a55';
-        elMensagem.innerText = `Errou! Você chegou ao nível ${nivel}`;
-        
-        if (nivel - 1 > recorde) {
-          recorde = nivel - 1;
-          localStorage.setItem('recordeGeniusPixel', recorde);
-          elRecorde.innerText = recorde;
-        }
-
-        btnIniciar.disabled = false;
-        btnIniciar.innerText = '🔄 JOGAR DE NOVO';
-        return;
-      }
-
-      if (sequenciaJogador.length === sequenciaJogo.length) {
-        bloqueado = true;
-        elMensagem.style.color = '#00ff66';
-        elMensagem.innerText = 'Muito bem! Próximo nível...';
-        setTimeout(proximoNivel, 1000);
+    function atirar() {
+      if (gameOver) return;
+      const agora = Date.now();
+      if (agora - tempoUltimoTiro > 250) {
+        tiros.push({ x: jogador.x + jogador.largura / 2 - 3, y: jogador.y - 10, largura: 6, altura: 14, velocidade: 9 });
+        tempoUltimoTiro = agora;
       }
     }
 
-    botoes.forEach((btn, index) => {
-      btn.addEventListener('click', () => verificarClique(index));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = true;
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') {
+        e.preventDefault();
+        atirar();
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = false;
     });
 
-    btnIniciar.addEventListener('click', () => {
-      sequenciaJogo = [];
-      nivel = 0;
-      btnIniciar.disabled = true;
-      proximoNivel();
-    });
-  </script>
-</body>
-</html>
+    const btnEsq = document.getElementById('btnEsq');
+    const btnDir = document.getElementById('btnDir');
+    const btnAtirar = document.getElementById('btnAtirar');
+
+    btnEsq.onmousedown = btnEsq.ontouchstart = () => teclas.esquerda = true;
+    btnEsq.onmouseup = btnEsq.ontouchend = () => teclas.esquerda = false;
+    btnDir.onmousedown = btnDir.ontouchstart = () => teclas.direita = true;
+    btnDir.onmouseup = btnDir.ontouchend = () => teclas.direita = false;
+    btnAtirar.onclick = atirar;
+
+    btnReiniciar.onclick = () => {
+      obstaculos = [];
+      tiros = [];
+      itens = [];
+      particulas = [];
+      pontos = 0;
+      elPontos.innerText = pontos;
+      jogador.x = 180;
+      jogador.escudo = false;
+      elEscudo.innerText = '';
+      gameOver = false;
+      btnReiniciar.style.display = 'none';
+      loop();
+    };
+
+    function criarExplosao(x, y, cor) {
+      for (let i = 0; i < 12; i++) {
+        particulas.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          vida: 25,
+          cor
+        });
+      }
+    }
+
+    function criarObstaculo() {
+      const largura = Math.floor(Math.random() * 55) + 30;
+      const x = Math.floor(Math.random() * (canvas.width - largura));
+      const velocidade = 2.8 + Math.min(pontos * 0.1, 6);
+      obstaculos.push({ x, y: -25, largura, altura: 22, velocidade });
+    }
+
+    function criarItem() {
+      const tipo = Math.random() < 0.75 ? 'moeda' : 'escudo';
+      const x = Math.floor(Math.random() * (canvas.width - 20));
+      itens.push({ x, y: -20, tamanho: 18, velocidade: 3.5, tipo });
+    }
+
+    function atualizar() {
+      if (teclas.esquerda && jogador.x > 0) jogador.x -= jogador.velocidade;
+      if (teclas.direita && jogador.x + jogador.largura < canvas.width) jogador.x += jogador.velocidade;
+
+      frame++;
+      if (frame % Math.max(22, 48 - Math.floor(pontos / 3)) === 0) criarObstaculo();
+      if (frame % 180 === 0) criarItem();
+
+      // Tiros
+      for (let i = tiros.length - 1; i >= 0; i--) {
+        tiros[i].y -= tiros[i].velocidade;
+        if (tiros[i].y < -20) tiros.splice(i, 1);
+      }
+
+      // Itens (Moedas e Escudo)
+      for (let i = itens.length - 1; i >= 0; i--) {
+        let item = itens[i];
+        item.y += item.velocidade;
+
+        if (
+          jogador.x < item.x + item.tamanho &&
+          jogador.x + jogador.largura > item.x &&
+          jogador.y < item.y + item.tamanho &&
+          jogador.y + jogador.altura > item.y
+        ) {
+          if (item.tipo === 'moeda') {
+            pontos += 5;
+            elPontos.innerText = pontos;
+            criarExplosao(item.x, item.y, '#ffd700');
+          } else {
+            jogador.escudo = true;
+            elEscudo.innerText = '🛡️ ESCUDO';
+            criarExplosao(item.x, item.y, '#00bfff');
+          }
+          itens.splice(i, 1);
+          continue;
+        }
+        if (item.y > canvas.height) itens.splice(i, 1);
+      }
+
+      // Obstáculos
+      for (let i = obstaculos.length - 1; i >= 0; i--) {
+        let obs = obstaculos[i];
+        obs.y += obs.velocidade;
+
+        // Colisão tiro x obstáculo
+        let destruido = false;
+        for (let j = tiros.length - 1; j >= 0; j--) {
+          let t = tiros[j];
+          if (
+            t.x < obs.x + obs.largura &&
+            t.x + t.largura > obs.x &&
+            t.y < obs.y + obs.altura &&
+            t.y + t.altura > obs.y
+          ) {
+            criarExplosao(obs.x + obs.largura / 2, obs.y + obs.altura / 2, '#ff007f');
+            tiros.splice(j, 1);
+            obstaculos.splice(i, 1);
+            pontos += 2;
+            elPontos.innerText = pontos;
+            destruido = true;
+            break;
+          }
+        }
+        if (destruido) continue;
+
+        // Colisão jogador x obstáculo
+        if (
+          jogador.x < obs.x + obs.largura &&
+          jogador.x + jogador.largura > obs.x &&
+          jogador.y < obs.y + obs.altura &&
+          jogador.y + jogador.altura > obs.y
+        ) {
+          if (jogador.escudo) {
+            jogador.escudo = false;
+            elEscudo.innerText = '';
+            criarExplosao(jogador.x + 20, jogador.y, '#00bfff');
+            obstaculos.splice(i, 1);
+            continue;
+          } else {
+            gameOver = true;
+            criarExplosao(jogador.x + 20, jogador.y, '#00ffcc');
+            if (pontos > recordeSalvo) {
+              recordeSalvo = pontos;
+              localStorage.setItem('recordeFabricaPixel', recordeSalvo);
+              elRecorde.innerText = recordeSalvo;
+            }
+            btnReiniciar.style.display = 'inline-block';
+          }
+        }
+
+        if (obs.y > canvas.height) {
+          obstaculos.splice(i, 1);
+          if (!gameOver) {
+            pontos++;
+            elPontos.innerText = pontos;
+          }
+        }
+      }
+
+      // Partículas
+      for (let i = particulas.length - 1; i >= 0; i--) {
+        let p = particulas[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vida--;
+        if (p.vida <= 0) particulas.splice(i, 1);
+      }
+    }
+
+    function desenhar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Jogador (estilo nave pixelada)
+      ctx.fillStyle = '#00ffcc';
+      ctx.fillRect(jogador.x, jogador.y + 6, jogador.largura, jogador.altura - 6);
+      ctx.fillRect(jogador.x + 14, jogador.y, 12, 8);
+
+      // Borda do escudo se ativo
+      if (jogador.escudo) {
+        ctx.strokeStyle = '#00bfff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(jogador.x - 5, jogador.y - 5, jogador.largura + 10, jogador.altura + 10);
+      }
+
+      // Tiros
+      ctx.fillStyle = '#ffaa00';
+      for (let t of tiros) ctx.fillRect(t.x, t.y, t.largura, t.altura);
+
+      // Itens
+      for (let item of itens) {
+        ctx.fillStyle = item.tipo === 'moeda' ? '#ffd700' : '#00bfff';
+        ctx.fillRect(item.x, item.y, item.tamanho, item.tamanho);
+      }
+
+      // Obstáculos
+      ctx.fillStyle = '#ff007f';
+      for (let obs of obstaculos) ctx.fillRect(obs.x, obs.y, obs.largura, obs.altura);
+
+      // Partículas
+      for (let p of particulas) {
+        ctx.fillStyle = p.cor;
+        ctx.fillRect(p.x, p.y, 4, 4);
+      }
+
+      if (gameOver) {
+Use o código com cuidado.
+ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+ctx.fillStyle = '#fff';
+ctx.font = 'bold 30px Courier New';
+ctx.textAlign = 'center';
+ctx.fillText('FIM DE JOGO!', canvas.width / 2, canvas.height / 2 - 10);
+ctx.font = '18px Courier New';
+ctx.fillStyle = '#00ffcc';
+ctx.fillText('Pontuação final: ' + pontos, canvas.width / 2, canvas.height / 2 + 25);
+}
+}
+function loop() {
+atualizar();
+desenhar();
+if (!gameOver) requestAnimationFrame(loop);
+}
+loop();
