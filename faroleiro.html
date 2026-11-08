@@ -2,290 +2,877 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>O Faroleiro - Protótipo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Faroleiro — Edição Atmosférica</title>
 <style>
-  * { box-sizing: border-box; font-family: 'Courier New', monospace; }
+  * { box-sizing: border-box; font-family: 'Courier New', monospace; user-select: none; }
   body {
-    background-color: #080c10;
+    background-color: #05080c;
     color: #c8d6e5;
     margin: 0;
-    padding: 20px;
+    padding: 15px;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
   }
-  #start-screen {
+
+  #start-screen, #end-screen {
     position: fixed; inset: 0;
-    background: #05080b;
+    background: rgba(4, 7, 11, 0.96);
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
-    z-index: 10; text-align: center; padding: 20px;
+    z-index: 20; text-align: center; padding: 20px;
   }
+  #end-screen { display: none; }
+
+  h1 { color: #ffa801; letter-spacing: 4px; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,168,1,0.4); }
+  .subtitle { max-width: 540px; line-height: 1.6; color: #808e9b; margin-bottom: 25px; }
+
   button {
-    background: #1e272e; color: #f5f6fa;
-    border: 1px solid #485460; padding: 12px 20px;
-    font-size: 16px; cursor: pointer; margin-top: 10px;
-    transition: 0.2s;
+    background: #161f29; color: #f5f6fa;
+    border: 1px solid #485460; padding: 12px 18px;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+    transition: 0.15s; text-transform: uppercase;
   }
-  button:hover { background: #ffa801; color: #000; border-color: #ffa801; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #ffa801; color: #05080c; border-color: #ffa801; }
+  button:active:not(:disabled) { transform: scale(0.98); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  #game-container {
-    width: 100%; max-width: 850px;
-    border: 2px solid #2f3640;
-    background: #0d131a;
-    padding: 20px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+  #game-wrapper {
+    width: 100%; max-width: 960px;
+    background: #0b1017;
+    border: 2px solid #222d3a;
+    box-shadow: 0 0 40px rgba(0,0,0,0.95);
+    padding: 16px;
   }
-  header {
-    display: flex; justify-content: space-between;
-    border-bottom: 1px solid #2f3640; padding-bottom: 10px;
-    margin-bottom: 20px; font-size: 18px;
+
+  /* Topo / HUD */
+  .top-hud {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #222d3a; padding-bottom: 10px; margin-bottom: 14px;
+    font-size: 15px;
   }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .badge { padding: 3px 8px; background: #131c26; border: 1px solid #2f3e4e; }
+  .storm-alert { color: #ff5e57; border-color: #ff5e57; animation: blink 1s infinite; display: none; }
+
+  /* Janela Visual (Canvas) */
+  .viewport-box {
+    position: relative;
+    border: 2px solid #1e2833;
+    background: #04070d;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  canvas#scene { display: block; width: 100%; height: 280px; }
+
+  /* Legenda narrativa estilo rádio */
+  #subtitle-box {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    width: 90%; background: rgba(5, 8, 13, 0.88);
+    border: 1px solid #0be881; color: #0be881;
+    padding: 10px 14px; font-size: 14px; text-align: center;
+    box-shadow: 0 0 15px rgba(11, 232, 129, 0.2);
+    display: none;
+  }
+
+  /* Controles Inferiores */
+  .controls-grid {
+    display: grid; grid-template-columns: 1fr 1.35fr; gap: 16px;
+  }
+  @media (max-width: 760px) { .controls-grid { grid-template-columns: 1fr; } }
+
   .panel {
-    border: 1px solid #2f3640; padding: 15px;
-    background: #111922;
+    background: #0f1620; border: 1px solid #222d3a; padding: 14px;
+    display: flex; flex-direction: column; justify-content: space-between;
   }
-  .panel h2 { margin-top: 0; font-size: 16px; color: #ffa801; border-bottom: 1px solid #2f3640; padding-bottom: 5px; }
-  .bar-bg { width: 100%; height: 18px; background: #1e272e; margin: 8px 0 15px; border: 1px solid #485460; }
-  .bar-fill { height: 100%; transition: width 0.3s; }
-  #fuel-bar { background: #e1b12c; width: 100%; }
-  #san-bar { background: #4cd137; width: 100%; }
-  #beacon-status { font-weight: bold; color: #4cd137; }
-  .danger { color: #e84118 !important; animation: blink 1s infinite; }
-  @keyframes blink { 50% { opacity: 0.3; } }
-
-  /* Rádio */
-  input[type=range] { width: 100%; margin: 15px 0; accent-color: #ffa801; }
-  #freq-display { font-size: 24px; color: #ffa801; text-align: center; }
-  #signal-meter { text-align: center; font-size: 13px; margin-bottom: 10px; color: #808e9b; }
-  #radio-output {
-    background: #05080b; border: 1px solid #2f3640;
-    padding: 12px; min-height: 90px; color: #0be881;
-    font-size: 14px; line-height: 1.4;
+  .panel-title {
+    font-size: 13px; color: #ffa801; letter-spacing: 1px;
+    border-bottom: 1px solid #222d3a; padding-bottom: 6px; margin-bottom: 12px;
+    display: flex; justify-content: space-between;
   }
 
-  /* Log */
-  #log {
-    margin-top: 20px; border: 1px solid #2f3640;
-    background: #05080b; padding: 10px;
-    height: 130px; overflow-y: auto; font-size: 13px;
+  /* Medidor de Energia Visual */
+  .energy-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .meter-frame {
+    width: 100%; height: 24px; background: #070b10;
+    border: 1px solid #3d4c5c; padding: 2px; position: relative;
   }
-  .log-entry { margin-bottom: 5px; }
+  .meter-fill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #e1b12c, #fbc531);
+    transition: width 0.15s linear, background 0.3s;
+  }
+  .meter-low {
+    background: linear-gradient(90deg, #c23616, #ff3f34) !important;
+    animation: blinkFast 0.45s infinite;
+  }
+
+  /* Medidor de Ponteiro Analógico (Sanidade/Tensão) */
+  .sanity-row { margin-top: 14px; }
+  .sanity-bar-bg { width: 100%; height: 10px; background: #070b10; border: 1px solid #2f3e4e; margin-top: 4px; }
+  .sanity-fill { height: 100%; width: 100%; background: #0be881; transition: width 0.2s; }
+
+  .btn-group { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-group button { flex: 1; }
+  #btn-gen.active-gen { background: #ffa801; color: #000; border-color: #fff; }
+
+  /* Rádio Antigo + Osciloscópio */
+  .radio-top { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  canvas#oscilloscope {
+    background: #040907; border: 1px solid #1e3b2f;
+    width: 150px; height: 54px; flex-shrink: 0;
+  }
+  .signal-status { flex: 1; font-size: 13px; }
+  #signal-badge { font-weight: bold; color: #808e9b; display: block; margin-bottom: 4px; }
+
+  /* Dial Analógico */
+  .dial-container {
+    position: relative; width: 100%; height: 58px;
+    background: linear-gradient(180deg, #1b1712 0%, #2a2218 50%, #16120e 100%);
+    border: 2px solid #4a3c2c; border-radius: 4px;
+    cursor: ew-resize; overflow: hidden;
+    box-shadow: inset 0 0 14px rgba(0,0,0,0.9);
+  }
+  canvas#dial-canvas { width: 100%; height: 100%; display: block; }
+  .dial-hint { font-size: 11px; color: #808e9b; margin-top: 5px; display: flex; justify-content: space-between; }
+
+  .glitch-box {
+    animation: shake 0.15s infinite;
+    border-color: #ff5e57 !important;
+  }
+
+  /* Diário de Bordo */
+  #log-box {
+    margin-top: 14px; background: #06090e; border: 1px solid #1e2833;
+    height: 85px; overflow-y: auto; padding: 8px 12px; font-size: 12px;
+  }
+  .log-line { margin-bottom: 4px; color: #95afc0; }
   .log-warn { color: #ff5e57; }
-  .log-mystery { color: #0be881; }
+  .log-good { color: #0be881; }
+
+  @keyframes blink { 50% { opacity: 0.25; } }
+  @keyframes blinkFast { 50% { opacity: 0.35; } }
+  @keyframes shake {
+    0% { transform: translate(1px, 0); }
+    50% { transform: translate(-1px, 1px); }
+    100% { transform: translate(0, -1px); }
+  }
 </style>
 </head>
 <body>
 
 <div id="start-screen">
   <h1>O FAROLEIRO</h1>
-  <p>Mantenha a luz girando até as 06:00.<br>Não deixe o combustível acabar. Ouça o que vem do mar.</p>
-  <button onclick="startGame()">LIGAR ENERGIA DO FAROL</button>
+  <p class="subtitle">
+    Mantenha o feixe do farol girando até as <b>06:00</b>.<br>
+    Segure o gerador para manter a energia — mas lembre-se: o ronco do motor abafa o rádio.<br>
+    Sintonize as frequências do mar e descubra o que está lá fora.
+  </p>
+  <button onclick="startGame()">ACENDER A LÂMPADA DO FAROL</button>
 </div>
 
-<div id="game-container">
-  <header>
-    <div>NOITE 1 — <span id="clock">00:00</span></div>
-    <div>FAROL: <span id="beacon-status">ATIVO</span></div>
-  </header>
+<div id="end-screen">
+  <h1 id="end-title">FIM DO TURNO</h1>
+  <p class="subtitle" id="end-desc"></p>
+  <button onclick="location.reload()">REINICIAR TURNO</button>
+</div>
 
-  <div class="grid">
-    <!-- Painel de Manutenção -->
+<div id="game-wrapper">
+  <div class="top-hud">
+    <div>NOITE 1 — <strong id="clock">00:00</strong> / 06:00</div>
+    <div id="storm-indicator" class="badge storm-alert">⚡ TEMPESTADE ELÉTRICA</div>
+    <div class="badge">SINAIS DECIFRADOS: <span id="signals-count">0</span>/4</div>
+  </div>
+
+  <!-- Janela do Mar e Farol -->
+  <div class="viewport-box">
+    <canvas id="scene" width="920" height="280"></canvas>
+    <div id="subtitle-box"></div>
+  </div>
+
+  <!-- Painéis de Controle -->
+  <div class="controls-grid">
+    <!-- Gerador e Torre -->
     <div class="panel">
-      <h2>PAINEL DA TORRE</h2>
-      <div>Combustível da Lâmpada: <span id="fuel-text">100%</span></div>
-      <div class="bar-bg"><div id="fuel-bar" class="bar-fill"></div></div>
+      <div>
+        <div class="panel-title">
+          <span>GERADOR DA TORRE</span>
+          <span id="gen-status-txt">EM OPERAÇÃO</span>
+        </div>
 
-      <div>Estabilidade Mental: <span id="san-text">100%</span></div>
-      <div class="bar-bg"><div id="san-bar" class="bar-fill"></div></div>
+        <div class="energy-header">
+          <span>ENERGIA DO FAROL</span>
+          <strong id="energy-pct">100%</strong>
+        </div>
+        <div class="meter-frame">
+          <div id="energy-bar" class="meter-fill"></div>
+        </div>
 
-      <button id="btn-refuel" onclick="refuel()">Bombear Óleo (+30%)</button>
-      <button id="btn-fix" onclick="fixFuse()" disabled>Religar Disjuntor</button>
+        <div class="sanity-row">
+          <div class="energy-header" style="font-size:12px;">
+            <span>ESTABILIDADE MENTAL</span>
+            <span id="sanity-pct">100%</span>
+          </div>
+          <div class="sanity-bar-bg">
+            <div id="sanity-bar" class="sanity-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-gen"
+          onmousedown="setGenerating(true)" onmouseup="setGenerating(false)" onmouseleave="setGenerating(false)"
+          ontouchstart="setGenerating(true)" ontouchend="setGenerating(false)">
+          ⚡ SEGURAR P/ ABASTECER
+        </button>
+      </div>
     </div>
 
-    <!-- Painel do Rádio -->
-    <div class="panel">
-      <h2>RÁDIO DE ONDAS CURTAS</h2>
-      <div id="freq-display">94.0 MHz</div>
-      <input type="range" id="freq-slider" min="88.0" max="108.0" step="0.2" value="94.0" oninput="updateRadio()">
-      <div id="signal-meter">SINAL: ESTÁTICA PURA</div>
-      <div id="radio-output">...chiado...</div>
+    <!-- Rádio Analógico -->
+    <div class="panel" id="radio-panel">
+      <div class="panel-title">
+        <span>RECEPTOR MARÍTIMO (88 - 108 MHz)</span>
+        <span id="freq-readout" style="color:#ff5e57;">94.0 MHz</span>
+      </div>
+
+      <div class="radio-top">
+        <canvas id="oscilloscope" width="150" height="54"></canvas>
+        <div class="signal-status">
+          <span id="signal-badge">ESTÁTICA NO CANAL</span>
+          <span id="radio-hint" style="color:#808e9b; font-size:12px;">Arraste a agulha vermelha no visor abaixo para buscar sinais.</span>
+        </div>
+      </div>
+
+      <div class="dial-container" id="dial-box">
+        <canvas id="dial-canvas" width="460" height="58"></canvas>
+      </div>
+
+      <div class="dial-hint">
+        <span>Arraste no visor ou use ◀ / ▶</span>
+        <button id="btn-smack" onclick="smackRadio()" style="padding:3px 8px; font-size:11px;" disabled>
+          ✋ DAR BATIDINHA NO RÁDIO
+        </button>
+      </div>
     </div>
   </div>
 
-  <div id="log"></div>
+  <div id="log-box"></div>
 </div>
 
 <script>
-  let fuel = 100;
+  // --- ESTADO DO JOGO ---
+  let energy = 85;
   let sanity = 100;
-  let minutes = 0; // 0 = 00:00, 360 = 06:00
-  let fuseBroken = false;
+  let minutes = 0; // 00:00 até 360 (06:00)
+  let freq = 94.0;
+  let isGenerating = false;
+  let isStorm = false;
+  let stormTimer = 0;
+  let radioGlitched = false;
   let gameOver = false;
-  let gameLoop;
+  let beamAngle = 0;
+  let wavePhase = 0;
 
-  // Áudio Procedural (Web Audio API)
-  let audioCtx, noiseGain, toneOsc, toneGain;
-
-  const signals = [
-    { freq: 91.4, found: false, text: "[CÓDIGO MORSE DECIFRADO]: 'NAVIO AURORA... SEM TRIPULAÇÃO A BORDO... ESTAMOS DERIVA...'" },
-    { freq: 98.8, found: false, text: "[VOZ DISTORCIDA]: 'Não olhe para a água quando a luz apagar. Ele sobe pelas pedras.'" },
-    { freq: 104.2, found: false, text: "[TRANSMISSÃO DE EMERGÊNCIA]: 'Farol da Ponta Negra, aqui é a Guarda Costeira. Nenhuma embarcação foi autorizada na sua área hoje.'" }
+  // Entidades misteriosas no mar (reveladas pelo feixe de luz)
+  const seaEntities = [
+    { x: 640, y: 178, type: 'ship', visibleTimer: 0, active: false },
+    { x: 780, y: 185, type: 'leviathan', visibleTimer: 0, active: false }
   ];
 
-  function initAudio() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Gerador de chiado (estática)
-    const bufferSize = audioCtx.sampleRate * 2;
-    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-
-    const whiteNoise = audioCtx.createBufferSource();
-    whiteNoise.buffer = noiseBuffer;
-    whiteNoise.loop = true;
-
-    noiseGain = audioCtx.createGain();
-    noiseGain.gain.value = 0.03;
-    whiteNoise.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
-    whiteNoise.start();
-
-    // Oscilador para apito de sintonia
-    toneOsc = audioCtx.createOscillator();
-    toneOsc.type = 'sine';
-    toneOsc.frequency.value = 520;
-    toneGain = audioCtx.createGain();
-    toneGain.gain.value = 0;
-    toneOsc.connect(toneGain);
-    toneGain.connect(audioCtx.destination);
-    toneOsc.start();
-  }
-
-  function addLog(msg, type = "") {
-    const log = document.getElementById("log");
-    const entry = document.createElement("div");
-    entry.className = "log-entry " + type;
-    entry.textContent = `[${formatTime(minutes)}] ${msg}`;
-    log.prepend(entry);
-  }
-
-  function formatTime(mins) {
-    const h = String(Math.floor(mins / 60)).padStart(2, '0');
-    const m = String(mins % 60).padStart(2, '0');
-    return `${h}:${m}`;
-  }
-
-  function startGame() {
-    document.getElementById("start-screen").style.display = "none";
-    initAudio();
-    addLog("Turno iniciado. Tempestade se aproximando pelo leste.");
-    updateRadio();
-    gameLoop = setInterval(tick, 1000);
-  }
-
-  function tick() {
-    if (gameOver) return;
-
-    minutes += 3; // Cada segundo real = 3 minutos no jogo (2 min reais = 6h de turno)
-    document.getElementById("clock").textContent = formatTime(minutes);
-
-    // Vitória às 06:00
-    if (minutes >= 360) {
-      endGame("AMANHECEU! Você sobreviveu à primeira noite no farol.");
-      return;
-    }
-
-    // Evento aleatório de pane no disjuntor
-    if (!fuseBroken && Math.random() < 0.06) {
-      fuseBroken = true;
-      document.getElementById("btn-fix").disabled = false;
-      addLog("ALERTA: Um raio atingiu a torre! O disjuntor desarmou!", "log-warn");
-    }
-
-    // Consumo de combustível e impacto na sanidade
-    const lightOn = fuel > 0 && !fuseBroken;
-    const statusEl = document.getElementById("beacon-status");
-
-    if (lightOn) {
-      fuel = Math.max(0, fuel - 1.4);
-      statusEl.textContent = "ATIVO";
-      statusEl.className = "";
-    } else {
-      sanity = Math.max(0, sanity - 3.5);
-      statusEl.textContent = "APAGADO (PERIGO)";
-      statusEl.className = "danger";
-      if (Math.random() < 0.3) addLog("Passos pesados ecoam na escada em espiral no escuro...", "log-warn");
-    }
-
-    updateUI();
-
-    if (sanity <= 0) {
-      endGame("FIM DE JOGO: A escuridão tomou conta da sua mente. Ninguém nunca mais encontrou o faroleiro.");
-    }
-  }
-
-  function updateUI() {
-    document.getElementById("fuel-text").textContent = Math.round(fuel) + "%";
-    document.getElementById("fuel-bar").style.width = fuel + "%";
-    document.getElementById("san-text").textContent = Math.round(sanity) + "%";
-    document.getElementById("san-bar").style.width = sanity + "%";
-  }
-
-  function refuel() {
-    if (gameOver) return;
-    fuel = Math.min(100, fuel + 30);
-    addLog("Óleo bombeado para o reservatório da lâmpada.");
-    updateUI();
-  }
-
-  function fixFuse() {
-    if (!fuseBroken || gameOver) return;
-    fuseBroken = false;
-    document.getElementById("btn-fix").disabled = true;
-    addLog("Disjuntor religado. O feixe de luz voltou a girar.");
-  }
-
-  function updateRadio() {
-    const val = parseFloat(document.getElementById("freq-slider").value);
-    document.getElementById("freq-display").textContent = val.toFixed(1) + " MHz";
-
-    let closest = null;
-    let minDiff = 999;
-
-    signals.forEach(s => {
-      const diff = Math.abs(val - s.freq);
-      if (diff < minDiff) { minDiff = diff; closest = s; }
-    });
-
-    const meter = document.getElementById("signal-meter");
-    const output = document.getElementById("radio-output");
-
-    if (minDiff === 0) {
-      meter.textContent = "SINAL: CLARO (100%)";
-      meter.style.color = "#0be881";
-      output.textContent = closest.text;
-      if (noiseGain) noiseGain.gain.value = 0.005;
-      if (toneGain) toneGain.gain.value = 0.03;
-      if (!closest.found) {
-        closest.found = true;
-        addLog(`Nova transmissão interceptada em ${closest.freq} MHz!`, "log-mystery");
-      }
-    } else if (minDiff <= 1.2) {
-      meter.textContent = "SINAL: INTERFERÊNCIA PRÓXIMA...";
-      meter.style.color = "#ffa801";
-      output.textContent = "...bzzzt... algo está transmitindo perto desta frequência... krrrr...";
-      if (noiseGain) noiseGain.gain.value = 0.04;
-      if (toneGain) toneGain.gain.value = 0.015;
-    } else {
-      meter.textContent = "SINAL: ESTÁTICA PURA";
-      meter.style.color = "#808e9b";
-      output.textContent = "...chiado... vento e ondas... chiado...";
-      if (noiseGain) noiseGain.gain.value = 0.025;
-      if (toneGain) toneGain.gain.value = 0;
-    }
-  }
-
+  // Sinais narrativos no rádio
+  const signals = [
+    {
+      freq: 90.4,
+      found: false,
+      title: "CARGUEIRO VENCEDOR — 90.4 MHz",
+      text: "“...aqui é o Cargueiro Vencedor... nossas bússolas giram sem parar e a água ao redor do casco está brilhando em verde...”"
+    },
+    {
+      freq: 95.8,
+      found: false,
+      title: "TRANSMISSÃO DESCONHECIDA — 95.8 MHz",
+Use o código com cuidado.
+text: "“[Respiração pesada]... Nós vemos a sua luz girando na torre, faroleiro. Não deixe ela apagar. Elas têm medo do feixe...”"
+},
+{
+freq: 101.2,
+found: false,
+title: "CÓDIGO MORSE COSTEIRO — 101.2 MHz",
+text: "“[MORSE DECIFRADO]: ALERTA METEOROLÓGICO. ANOMALIA MAGNÉTICA DETECTADA A 2 MILHAS DO FAROL DA PONTA NEGRA.”"
+},
+{
+freq: 106.4,
+found: false,
+title: "FREQUÊNCIA SUBMERSA — 106.4 MHz",
+text: "“[Vozes em coro distorcidas]: O farol antigo afundou há cinquenta anos... quem você acha que acendeu a lâmpada hoje?”"
+}
+];
+// Estrelas e Nuvens
+const stars = Array.from({ length: 45 }, () => ({
+x: Math.random() * 920,
+y: Math.random() * 145,
+size: Math.random() * 1.8 + 0.5,
+blinkOffset: Math.random() * Math.PI * 2
+}));
+const clouds = Array.from({ length: 6 }, (_, i) => ({
+x: i * 180,
+y: 25 + Math.random() * 55,
+w: 130 + Math.random() * 90,
+speed: 0.15 + Math.random() * 0.2
+}));
+// --- ÁUDIO PROCEDURAL (WEB AUDIO API) ---
+let audioCtx, staticGain, toneOsc, toneGain, genOsc, genGain, windGain;
+function initAudio() {
+audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// Buffer de ruído branco para vento e estática
+const bufferSize = audioCtx.sampleRate * 2;
+const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+const data = noiseBuffer.getChannelData(0);
+for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+// 1. Vento e Ondas (Filtro passa-baixa grave)
+const windNoise = audioCtx.createBufferSource();
+windNoise.buffer = noiseBuffer;
+windNoise.loop = true;
+const windFilter = audioCtx.createBiquadFilter();
+windFilter.type = 'lowpass';
+windFilter.frequency.value = 260;
+windGain = audioCtx.createGain();
+windGain.gain.value = 0.08;
+windNoise.connect(windFilter);
+windFilter.connect(windGain);
+windGain.connect(audioCtx.destination);
+windNoise.start();
+// 2. Estática do Rádio (Filtro passa-banda)
+const radioNoise = audioCtx.createBufferSource();
+radioNoise.buffer = noiseBuffer;
+radioNoise.loop = true;
+const radioFilter = audioCtx.createBiquadFilter();
+radioFilter.type = 'bandpass';
+radioFilter.frequency.value = 1400;
+staticGain = audioCtx.createGain();
+staticGain.gain.value = 0.03;
+radioNoise.connect(radioFilter);
+radioFilter.connect(staticGain);
+staticGain.connect(audioCtx.destination);
+radioNoise.start();
+// 3. Tom de sintonia do rádio
+toneOsc = audioCtx.createOscillator();
+toneOsc.type = 'sine';
+toneOsc.frequency.value = 480;
+toneGain = audioCtx.createGain();
+toneGain.gain.value = 0;
+toneOsc.connect(toneGain);
+toneGain.connect(audioCtx.destination);
+toneOsc.start();
+// 4. Zumbido do Gerador
+genOsc = audioCtx.createOscillator();
+genOsc.type = 'sawtooth';
+genOsc.frequency.value = 58;
+const genFilter = audioCtx.createBiquadFilter();
+genFilter.type = 'lowpass';
+genFilter.frequency.value = 140;
+genGain = audioCtx.createGain();
+genGain.gain.value = 0.015;
+genOsc.connect(genFilter);
+genFilter.connect(genGain);
+genGain.connect(audioCtx.destination);
+genOsc.start();
+}
+function playSmackSound() {
+if (!audioCtx) return;
+const osc = audioCtx.createOscillator();
+const g = audioCtx.createGain();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.12);
+g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+osc.connect(g);
+g.connect(audioCtx.destination);
+osc.start();
+osc.stop(audioCtx.currentTime + 0.13);
+}
+// --- CONTROLES E INTERAÇÃO ---
+function startGame() {
+document.getElementById("start-screen").style.display = "none";
+initAudio();
+addLog("Turno iniciado. O mar está agitado e o rádio capta interferências.");
+drawDial();
+setInterval(logicTick, 250); // 4 ticks por segundo
+requestAnimationFrame(renderLoop);
+}
+function setGenerating(state) {
+if (gameOver) return;
+isGenerating = state;
+const btn = document.getElementById("btn-gen");
+if (state) {
+btn.classList.add("active-gen");
+btn.textContent = "⚙️ GERANDO ENERGIA (RÁDIO ABAFADO)...";
+} else {
+btn.classList.remove("active-gen");
+btn.textContent = "⚡ SEGURAR P/ ABASTECER";
+}
+}
+function smackRadio() {
+if (!radioGlitched || gameOver) return;
+playSmackSound();
+radioGlitched = false;
+document.getElementById("radio-panel").classList.remove("glitch-box");
+document.getElementById("btn-smack").disabled = true;
+addLog("Você deu uma batida firme na carcaça do rádio. O sinal estabilizou.", "log-good");
+}
+// Controle do Dial Analógico (Mouse / Touch / Teclado)
+const dialCanvas = document.getElementById("dial-canvas");
+let draggingDial = false;
+function updateFreqFromEvent(clientX) {
+const rect = dialCanvas.getBoundingClientRect();
+const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+freq = Math.round((88.0 + ratio * 20.0) * 5) / 5; // Passos de 0.2 MHz
+document.getElementById("freq-readout").textContent = freq.toFixed(1) + " MHz";
+drawDial();
+}
+dialCanvas.addEventListener("mousedown", e => { draggingDial = true; updateFreqFromEvent(e.clientX); });
+window.addEventListener("mousemove", e => { if (draggingDial) updateFreqFromEvent(e.clientX); });
+window.addEventListener("mouseup", () => { draggingDial = false; });
+dialCanvas.addEventListener("touchstart", e => { draggingDial = true; updateFreqFromEvent(e.touches[0].clientX); });
+window.addEventListener("touchmove", e => { if (draggingDial) updateFreqFromEvent(e.touches[0].clientX); });
+window.addEventListener("touchend", () => { draggingDial = false; });
+window.addEventListener("keydown", e => {
+if (e.key === "ArrowLeft") { freq = Math.max(88.0, Math.round((freq - 0.2) * 10) / 10); drawDial(); }
+if (e.key === "ArrowRight") { freq = Math.min(108.0, Math.round((freq + 0.2) * 10) / 10); drawDial(); }
+document.getElementById("freq-readout").textContent = freq.toFixed(1) + " MHz";
+});
+// --- LÓGICA PRINCIPAL (4x POR SEGUNDO) ---
+function logicTick() {
+if (gameOver) return;
+// Avanço do relógio (cada segundo real = 2.5 min no jogo -> ~2m24s por noite)
+minutes += 0.625;
+const h = String(Math.floor(minutes / 60)).padStart(2, '0');
+const m = String(Math.floor(minutes % 60)).padStart(2, '0');
+document.getElementById("clock").textContent = ${h}:${m};
+if (minutes >= 360) {
+finishGame(true, "06:00 — O sol nasceu no horizonte. Você manteve a luz acesa e sobreviveu aos segredos da noite.");
+return;
+}
+// Tempestade aleatória
+if (!isStorm && Math.random() < 0.008) {
+isStorm = true;
+stormTimer = 48; // ~12 segundos
+document.getElementById("storm-indicator").style.display = "inline-block";
+addLog("ALERTA: Tempestade elétrica se aproximando! O consumo de energia dobrou.", "log-warn");
+if (windGain) windGain.gain.value = 0.18;
+} else if (isStorm) {
+stormTimer--;
+if (stormTimer <= 0) {
+isStorm = false;
+document.getElementById("storm-indicator").style.display = "none";
+addLog("A tempestade passou, mas a neblina continua densa.");
+if (windGain) windGain.gain.value = 0.08;
+}
+}
+// Falha aleatória no rádio (exige batidinha)
+if (!radioGlitched && Math.random() < 0.007) {
+radioGlitched = true;
+document.getElementById("radio-panel").classList.add("glitch-box");
+document.getElementById("btn-smack").disabled = false;
+addLog("INTERFERÊNCIA: Válvula do rádio travou! Dê uma batidinha no aparelho.", "log-warn");
+}
+// Aparição aleatória de silhueta no mar
+if (Math.random() < 0.012) {
+const target = seaEntities[Math.floor(Math.random() * seaEntities.length)];
+if (!target.active) {
+target.active = true;
+target.visibleTimer = 40;
+}
+}
+// Energia e Gerador
+if (isGenerating) {
+energy = Math.min(100, energy + 2.2);
+if (genGain) genGain.gain.value = 0.14; // Ronco alto do motor
+if (genOsc) genOsc.frequency.value = 82;
+} else {
+const drain = isStorm ? 0.65 : 0.35;
+energy = Math.max(0, energy - drain);
+if (genGain) genGain.gain.value = energy > 0 ? 0.015 : 0;
+if (genOsc) genOsc.frequency.value = 55;
+}
+// Sanidade cai se a luz apagar ou ficar crítica
+if (energy <= 0) {
+sanity = Math.max(0, sanity - 1.4);
+document.getElementById("gen-status-txt").textContent = "APAGADO!";
+document.getElementById("gen-status-txt").style.color = "#ff5e57";
+} else if (energy < 20) {
+sanity = Math.max(0, sanity - 0.35);
+document.getElementById("gen-status-txt").textContent = "ENERGIA CRÍTICA";
+document.getElementById("gen-status-txt").style.color = "#ff5e57";
+} else {
+sanity = Math.min(100, sanity + 0.15);
+document.getElementById("gen-status-txt").textContent = isGenerating ? "ABASTECENDO..." : "ESTÁVEL";
+document.getElementById("gen-status-txt").style.color = "#0be881";
+}
+if (sanity <= 0) {
+finishGame(false, "A luz do farol se apagou por tempo demais. Algo subiu pelas pedras até a sala de controle.");
+return;
+}
+updateBarsAndRadio();
+}
+function updateBarsAndRadio() {
+// Barra de energia
+const ePct = Math.round(energy);
+document.getElementById("energy-pct").textContent = ePct + "%";
+const eBar = document.getElementById("energy-bar");
+eBar.style.width = ePct + "%";
+if (ePct <= 20) eBar.classList.add("meter-low");
+else eBar.classList.remove("meter-low");
+// Barra de sanidade
+const sPct = Math.round(sanity);
+document.getElementById("sanity-pct").textContent = sPct + "%";
+const sBar = document.getElementById("sanity-bar");
+sBar.style.width = sPct + "%";
+sBar.style.background = sPct < 30 ? "#ff5e57" : "#0be881";
+// Lógica do Rádio
+const subBox = document.getElementById("subtitle-box");
+const sigBadge = document.getElementById("signal-badge");
+const radioHint = document.getElementById("radio-hint");
+if (isGenerating) {
+sigBadge.textContent = "RÁDIO ABAFADO PELO MOTOR";
+sigBadge.style.color = "#ffa801";
+radioHint.textContent = "Solte o botão do gerador para ouvir a frequência.";
+subBox.style.display = "none";
+if (staticGain) staticGain.gain.value = 0.005;
+if (toneGain) toneGain.gain.value = 0;
+return;
+}
+if (radioGlitched) {
+sigBadge.textContent = "FALHA DE VÁLVULA (CHIADO)";
+sigBadge.style.color = "#ff5e57";
+radioHint.textContent = "Clique em 'Dar batidinha no rádio' para destravar.";
+subBox.style.display = "none";
+if (staticGain) staticGain.gain.value = 0.06;
+if (toneGain) toneGain.gain.value = 0;
+return;
+}
+// Verifica proximidade com algum sinal
+let closest = null;
+let minDiff = 999;
+signals.forEach(s => {
+const diff = Math.abs(freq - s.freq);
+if (diff < minDiff) { minDiff = diff; closest = s; }
+});
+if (minDiff <= 0.25) {
+sigBadge.textContent = "SINAL DETECTADO!";
+sigBadge.style.color = "#0be881";
+radioHint.textContent = closest.title;
+subBox.style.display = "block";
+subBox.textContent = closest.text;
+if (staticGain) staticGain.gain.value = 0.004;
+if (toneGain) { toneGain.gain.value = 0.025; toneOsc.frequency.value = 540; }
+if (!closest.found) {
+closest.found = true;
+const count = signals.filter(x => x.found).length;
+document.getElementById("signals-count").textContent = count;
+addLog(Sinal registrado: ${closest.title}, "log-good");
+}
+} else if (minDiff <= 1.4) {
+sigBadge.textContent = "INTERFERÊNCIA PRÓXIMA...";
+sigBadge.style.color = "#ffa801";
+radioHint.textContent = "Ajuste fino na agulha vermelha...";
+subBox.style.display = "none";
+if (staticGain) staticGain.gain.value = 0.025;
+if (toneGain) { toneGain.gain.value = 0.012; toneOsc.frequency.value = 390; }
+} else {
+sigBadge.textContent = "ESTÁTICA NO CANAL";
+sigBadge.style.color = "#808e9b";
+radioHint.textContent = "Arraste a agulha vermelha no visor abaixo.";
+subBox.style.display = "none";
+if (staticGain) staticGain.gain.value = 0.035;
+if (toneGain) toneGain.gain.value = 0;
+}
+}
+// --- RENDERIZAÇÃO DO DIAL DO RÁDIO ---
+function drawDial() {
+const ctx = dialCanvas.getContext("2d");
+const w = dialCanvas.width;
+const h = dialCanvas.height;
+ctx.clearRect(0, 0, w, h);
+// Fundo iluminado âmbar suave
+const grad = ctx.createLinearGradient(0, 0, 0, h);
+grad.addColorStop(0, "#1c1610");
+grad.addColorStop(0.5, "#332618");
+grad.addColorStop(1, "#18120c");
+ctx.fillStyle = grad;
+ctx.fillRect(0, 0, w, h);
+// Marcações de 88 a 108 MHz
+ctx.strokeStyle = "#d2b48c";
+ctx.fillStyle = "#e6cfa8";
+ctx.font = "11px Courier New";
+ctx.textAlign = "center";
+for (let f = 88; f <= 108; f += 0.5) {
+const x = ((f - 88) / 20) * (w - 30) + 15;
+const isMajor = f % 2 === 0;
+const tickH = isMajor ? 16 : 8;
+ctx.beginPath();
+ctx.moveTo(x, h - 8);
+ctx.lineTo(x, h - 8 - tickH);
+ctx.lineWidth = isMajor ? 1.5 : 1;
+ctx.stroke();
+if (isMajor) {
+ctx.fillText(f, x, 20);
+}
+}
+// Agulha Vermelha
+const needleX = ((freq - 88) / 20) * (w - 30) + 15;
+ctx.strokeStyle = "#ff3f34";
+ctx.lineWidth = 3;
+ctx.beginPath();
+ctx.moveTo(needleX, 4);
+ctx.lineTo(needleX, h - 4);
+ctx.stroke();
+// Brilho na agulha
+ctx.fillStyle = "rgba(255, 63, 52, 0.25)";
+ctx.fillRect(needleX - 5, 4, 10, h - 8);
+}
+// --- RENDERIZAÇÃO DO CENÁRIO (MAR, CÉU, FAROL) E OSCILOSCÓPIO ---
+const sceneCanvas = document.getElementById("scene");
+const sCtx = sceneCanvas.getContext("2d");
+const oscCanvas = document.getElementById("oscilloscope");
+const oCtx = oscCanvas.getContext("2d");
+function renderLoop(timestamp) {
+drawScene(timestamp);
+drawOscilloscope(timestamp);
+requestAnimationFrame(renderLoop);
+}
+function drawScene(t) {
+const w = sceneCanvas.width;
+const h = sceneCanvas.height;
+const horizonY = 175;
+// 1. Céu Noturno
+const skyGrad = sCtx.createLinearGradient(0, 0, 0, horizonY);
+skyGrad.addColorStop(0, isStorm ? "#090c14" : "#040812");
+skyGrad.addColorStop(1, isStorm ? "#182232" : "#0d1b2a");
+sCtx.fillStyle = skyGrad;
+sCtx.fillRect(0, 0, w, horizonY);
+// Relâmpago ocasional na tempestade
+if (isStorm && Math.random() < 0.015) {
+sCtx.fillStyle = "rgba(200, 225, 255, 0.18)";
+sCtx.fillRect(0, 0, w, horizonY);
+}
+// 2. Estrelas piscando
+stars.forEach(st => {
+const alpha = 0.3 + 0.7 * Math.abs(Math.sin(t * 0.0015 + st.blinkOffset));
+sCtx.fillStyle = rgba(235, 245, 255, ${isStorm ? alpha * 0.25 : alpha});
+sCtx.fillRect(st.x, st.y, st.size, st.size);
+});
+// 3. Nuvens escuras passando
+clouds.forEach(c => {
+c.x += isStorm ? c.speed * 3.5 : c.speed;
+if (c.x > w + 100) c.x = -c.w - 50;
+sCtx.fillStyle = isStorm ? "rgba(12, 16, 24, 0.75)" : "rgba(18, 28, 42, 0.45)";
+sCtx.beginPath();
+sCtx.ellipse(c.x, c.y, c.w * 0.5, 18, 0, 0, Math.PI * 2);
+sCtx.fill();
+});
+// 4. Mar e Ondas Suaves
+const seaGrad = sCtx.createLinearGradient(0, horizonY, 0, h);
+seaGrad.addColorStop(0, "#071320");
+seaGrad.addColorStop(1, "#02060c");
+sCtx.fillStyle = seaGrad;
+sCtx.fillRect(0, horizonY, w, h - horizonY);
+wavePhase += isStorm ? 0.045 : 0.018;
+for (let layer = 0; layer < 4; layer++) {
+const yBase = horizonY + 12 + layer * 22;
+sCtx.strokeStyle = rgba(72, 126, 176, ${0.12 + layer * 0.05});
+sCtx.lineWidth = 1.5;
+sCtx.beginPath();
+for (let x = 0; x <= w; x += 15) {
+const wy = yBase + Math.sin(x * 0.02 + wavePhase + layer) * (isStorm ? 4.5 : 2.2);
+if (x === 0) sCtx.moveTo(x, wy);
+else sCtx.lineTo(x, wy);
+}
+sCtx.stroke();
+}
+// 5. Cálculo da Intensidade da Luz do Farol
+beamAngle += 0.018;
+const sweep = Math.sin(beamAngle); // -1 (esquerda) a +1 (direita)
+let lightPower = energy > 0 ? 1 : 0;
+// Pisca quando a energia está abaixo de 20%
+if (energy > 0 && energy <= 20) {
+lightPower = Math.sin(t * 0.03) > 0 ? 0.55 : 0.12;
+}
+const lanternX = 135;
+const lanternY = 78;
+// 6. Feixe de Luz com Degradê Suave e Reflexo na Água
+if (lightPower > 0 && sweep > -0.35) {
+const reachX = 320 + (sweep + 0.35) * 440;
+const spreadY = 58;
+// Cone de luz
+const beamGrad = sCtx.createLinearGradient(lanternX, lanternY, reachX, horizonY + 25);
+beamGrad.addColorStop(0, rgba(255, 235, 150, ${0.65 * lightPower}));
+beamGrad.addColorStop(0.6, rgba(255, 220, 110, ${0.22 * lightPower}));
+beamGrad.addColorStop(1, "rgba(255, 220, 110, 0)");
+sCtx.fillStyle = beamGrad;
+sCtx.beginPath();
+sCtx.moveTo(lanternX, lanternY - 5);
+sCtx.lineTo(reachX, horizonY - spreadY);
+sCtx.lineTo(reachX, horizonY + spreadY);
+sCtx.lineTo(lanternX, lanternY + 5);
+sCtx.closePath();
+sCtx.fill();
+// Reflexo cintilante da luz na água
+for (let r = 0; r < 6; r++) {
+const rx = reachX - 60 + Math.sin(t * 0.005 + r) * 35;
+const ry = horizonY + 10 + r * 14;
+const rw = 30 + r * 12;
+sCtx.fillStyle = rgba(255, 225, 130, ${(0.22 - r * 0.03) * lightPower});
+sCtx.fillRect(rx - rw / 2, ry, rw, 2.5);
+}
+// Silhuetas no mar reveladas quando o feixe passa perto
+seaEntities.forEach(ent => {
+if (!ent.active) return;
+const dist = Math.abs(reachX - ent.x);
+if (dist < 110) {
+sCtx.fillStyle = rgba(4, 8, 14, ${0.85 * lightPower});
+if (ent.type === 'ship') {
+// Silhueta de navio fantasma
+sCtx.fillRect(ent.x - 28, ent.y - 10, 56, 10);
+sCtx.fillRect(ent.x - 10, ent.y - 22, 16, 12);
+sCtx.fillRect(ent.x + 12, ent.y - 18, 6, 8);
+} else {
+// Silhueta de criatura/tentáculos emergindo
+sCtx.beginPath();
+sCtx.arc(ent.x, ent.y, 16, Math.PI, 0);
+sCtx.fill();
+sCtx.fillRect(ent.x - 22, ent.y - 24, 5, 24);
+sCtx.fillRect(ent.x + 16, ent.y - 28, 5, 28);
+}
+}
+ent.visibleTimer--;
+if (ent.visibleTimer <= 0) ent.active = false;
+});
+}
+// 7. Penhasco e Torre do Farol
+// Rocha
+sCtx.fillStyle = "#090d14";
+sCtx.beginPath();
+sCtx.moveTo(0, h);
+sCtx.lineTo(0, 195);
+sCtx.lineTo(190, 205);
+sCtx.lineTo(245, h);
+sCtx.closePath();
+sCtx.fill();
+// Base do Farol (Sala de controle)
+sCtx.fillStyle = "#18202c";
+sCtx.fillRect(102, 162, 66, 40);
+// Janelinha acesa na base mostrando onde o personagem está
+sCtx.fillStyle = energy > 0 ? "#ffa801" : "#2f3640";
+sCtx.fillRect(126, 174, 18, 14);
+if (energy > 0) {
+sCtx.fillStyle = "rgba(255, 168, 1, 0.22)";
+sCtx.beginPath();
+sCtx.arc(135, 181, 20, 0, Math.PI * 2);
+sCtx.fill();
+}
+// Corpo cônico da torre
+sCtx.fillStyle = "#222c3a";
+sCtx.beginPath();
+sCtx.moveTo(112, 162);
+sCtx.lineTo(122, 88);
+sCtx.lineTo(148, 88);
+sCtx.lineTo(158, 162);
+sCtx.closePath();
+sCtx.fill();
+// Faixa vermelha clássica da torre
+sCtx.fillStyle = "#782828";
+sCtx.beginPath();
+sCtx.moveTo(116, 134);
+sCtx.lineTo(119, 114);
+sCtx.lineTo(151, 114);
+sCtx.lineTo(154, 134);
+sCtx.closePath();
+sCtx.fill();
+// Sala da Lanterna e Cúpula
+sCtx.fillStyle = "#0d131a";
+sCtx.fillRect(120, 70, 30, 18);
+sCtx.beginPath();
+sCtx.arc(135, 70, 16, Math.PI, 0);
+sCtx.fill();
+// Brilho da lâmpada no topo
+if (lightPower > 0) {
+const glow = sCtx.createRadialGradient(lanternX, lanternY, 2, lanternX, lanternY, 28);
+glow.addColorStop(0, rgba(255, 250, 200, ${lightPower}));
+glow.addColorStop(1, "rgba(255, 200, 50, 0)");
+sCtx.fillStyle = glow;
+sCtx.beginPath();
+sCtx.arc(lanternX, lanternY, 28, 0, Math.PI * 2);
+sCtx.fill();
+}
+}
+// --- OSCILOSCÓPIO DO RÁDIO ---
+function drawOscilloscope(t) {
+const w = oscCanvas.width;
+const h = oscCanvas.height;
+oCtx.fillStyle = "#040907";
+oCtx.fillRect(0, 0, w, h);
+// Linha de grade central
+oCtx.strokeStyle = "#0e291e";
+oCtx.lineWidth = 1;
+oCtx.beginPath();
+oCtx.moveTo(0, h / 2);
+oCtx.lineTo(w, h / 2);
+oCtx.stroke();
+// Verifica qualidade do sinal atual
+let minDiff = 999;
+signals.forEach(s => {
+const diff = Math.abs(freq - s.freq);
+if (diff < minDiff) minDiff = diff;
+});
+const isClean = !isGenerating && !radioGlitched && minDiff <= 0.25;
+const isNear = !isGenerating && !radioGlitched && minDiff <= 1.4;
+oCtx.strokeStyle = isClean ? "#0be881" : (isNear ? "#ffa801" : "#2ed573");
+oCtx.lineWidth = isClean ? 2 : 1.3;
+oCtx.beginPath();
+for (let x = 0; x < w; x += 3) {
+let y = h / 2;
+if (isGenerating) {
+// Onda pesada e irregular do motor
+y += Math.sin(x * 0.4 + t * 0.05) * 14 + (Math.random() - 0.5) * 10;
+} else if (isClean) {
+// Onda senoidal limpa ao sintonizar
+y += Math.sin(x * 0.14 + t * 0.015) * 16;
+} else if (isNear) {
+// Onda mista com interferência
+y += Math.sin(x * 0.14 + t * 0.015) * 10 + (Math.random() - 0.5) * 14;
+} else {
+// Estática caótica
+y += (Math.random() - 0.5) * 26;
+}
+if (x === 0) oCtx.moveTo(x, y);
+else oCtx.lineTo(x, y);
+}
+oCtx.stroke();
+}
+// --- DIÁRIO DE BORDO E FIM DE JOGO ---
+function addLog(msg, cls = "") {
+const box = document.getElementById("log-box");
+const line = document.createElement("div");
+line.className = "log-line " + cls;
+const h = String(Math.floor(minutes / 60)).padStart(2, '0');
+const m = String(Math.floor(minutes % 60)).padStart(2, '0');
+line.textContent = [${h}:${m}] ${msg};
+box.prepend(line);
+}
+function finishGame(win, desc) {
+gameOver = true;
+isGenerating = false;
+if (staticGain) staticGain.gain.value = 0;
+if (toneGain) toneGain.gain.value = 0;
+if (genGain) genGain.gain.value = 0;
+if (windGain) windGain.gain.value = 0;
+const endScreen = document.getElementById("end-screen");
+const title = document.getElementById("end-title");
+title.textContent = win ? "AMANHECEU — TURNO CONCLUÍDO" : "A ESCURIDÃO TOMOU O FAROL";
+title.style.color = win ? "#0be881" : "#ff5e57";
+document.getElementById("end-desc").textContent = desc;
+endScreen.style.display = "flex";
+}
