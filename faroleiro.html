@@ -2,112 +2,290 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>O Faroleiro</title>
+<title>O Faroleiro - Protótipo</title>
 <style>
-  body { background: #05080f; color: #d0e1f9; font-family: monospace; text-align: center; margin: 0; padding: 15px; user-select: none; }
-  h1 { color: #ffdd57; margin: 5px 0; text-shadow: 0 0 10px #ffaa00; }
-  canvas { background: #0a1122; border: 2px solid #283655; display: block; margin: 10px auto; max-width: 95vw; }
-  .painel { background: #111b33; border: 2px solid #4d648d; max-width: 500px; margin: 10px auto; padding: 15px; border-radius: 8px; }
-  button { background: #ffaa00; color: #05080f; border: none; padding: 10px 18px; font-weight: bold; font-family: inherit; cursor: pointer; border-radius: 5px; font-size: 15px; }
-  button:active { transform: scale(0.95); }
-  input[type=range] { width: 80%; margin: 10px 0; accent-color: #00ffcc; }
-  #msg { color: #00ffcc; min-height: 22px; font-weight: bold; margin-top: 8px; }
+  * { box-sizing: border-box; font-family: 'Courier New', monospace; }
+  body {
+    background-color: #080c10;
+    color: #c8d6e5;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  #start-screen {
+    position: fixed; inset: 0;
+    background: #05080b;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    z-index: 10; text-align: center; padding: 20px;
+  }
+  button {
+    background: #1e272e; color: #f5f6fa;
+    border: 1px solid #485460; padding: 12px 20px;
+    font-size: 16px; cursor: pointer; margin-top: 10px;
+    transition: 0.2s;
+  }
+  button:hover { background: #ffa801; color: #000; border-color: #ffa801; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #game-container {
+    width: 100%; max-width: 850px;
+    border: 2px solid #2f3640;
+    background: #0d131a;
+    padding: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+  }
+  header {
+    display: flex; justify-content: space-between;
+    border-bottom: 1px solid #2f3640; padding-bottom: 10px;
+    margin-bottom: 20px; font-size: 18px;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel {
+    border: 1px solid #2f3640; padding: 15px;
+    background: #111922;
+  }
+  .panel h2 { margin-top: 0; font-size: 16px; color: #ffa801; border-bottom: 1px solid #2f3640; padding-bottom: 5px; }
+  .bar-bg { width: 100%; height: 18px; background: #1e272e; margin: 8px 0 15px; border: 1px solid #485460; }
+  .bar-fill { height: 100%; transition: width 0.3s; }
+  #fuel-bar { background: #e1b12c; width: 100%; }
+  #san-bar { background: #4cd137; width: 100%; }
+  #beacon-status { font-weight: bold; color: #4cd137; }
+  .danger { color: #e84118 !important; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  /* Rádio */
+  input[type=range] { width: 100%; margin: 15px 0; accent-color: #ffa801; }
+  #freq-display { font-size: 24px; color: #ffa801; text-align: center; }
+  #signal-meter { text-align: center; font-size: 13px; margin-bottom: 10px; color: #808e9b; }
+  #radio-output {
+    background: #05080b; border: 1px solid #2f3640;
+    padding: 12px; min-height: 90px; color: #0be881;
+    font-size: 14px; line-height: 1.4;
+  }
+
+  /* Log */
+  #log {
+    margin-top: 20px; border: 1px solid #2f3640;
+    background: #05080b; padding: 10px;
+    height: 130px; overflow-y: auto; font-size: 13px;
+  }
+  .log-entry { margin-bottom: 5px; }
+  .log-warn { color: #ff5e57; }
+  .log-mystery { color: #0be881; }
 </style>
 </head>
 <body>
-  <h1>🔦 O FAROLEIRO</h1>
-  <div>Hora: <b id="hora">00:00</b> / 06:00 | Energia do Farol: <b id="luz">100</b>%</div>
-  <canvas id="c" width="500" height="220"></canvas>
-  <div class="painel">
-    <button onclick="abastecer()">⚡ ABASTECER GERADOR (+25%)</button>
-    <hr style="border-color:#283655; margin:12px 0;">
-    <div>📻 RÁDIO: <b id="freqAtual">90.0</b> MHz | Alvo: <b id="freqAlvo" style="color:#ff2a55">---</b></div>
-    <input type="range" id="dial" min="88" max="108" step="0.5" value="90" oninput="checarRadio()">
-    <div id="msg">Mantenha a luz acesa até amanhecer...</div>
+
+<div id="start-screen">
+  <h1>O FAROLEIRO</h1>
+  <p>Mantenha a luz girando até as 06:00.<br>Não deixe o combustível acabar. Ouça o que vem do mar.</p>
+  <button onclick="startGame()">LIGAR ENERGIA DO FAROL</button>
+</div>
+
+<div id="game-container">
+  <header>
+    <div>NOITE 1 — <span id="clock">00:00</span></div>
+    <div>FAROL: <span id="beacon-status">ATIVO</span></div>
+  </header>
+
+  <div class="grid">
+    <!-- Painel de Manutenção -->
+    <div class="panel">
+      <h2>PAINEL DA TORRE</h2>
+      <div>Combustível da Lâmpada: <span id="fuel-text">100%</span></div>
+      <div class="bar-bg"><div id="fuel-bar" class="bar-fill"></div></div>
+
+      <div>Estabilidade Mental: <span id="san-text">100%</span></div>
+      <div class="bar-bg"><div id="san-bar" class="bar-fill"></div></div>
+
+      <button id="btn-refuel" onclick="refuel()">Bombear Óleo (+30%)</button>
+      <button id="btn-fix" onclick="fixFuse()" disabled>Religar Disjuntor</button>
+    </div>
+
+    <!-- Painel do Rádio -->
+    <div class="panel">
+      <h2>RÁDIO DE ONDAS CURTAS</h2>
+      <div id="freq-display">94.0 MHz</div>
+      <input type="range" id="freq-slider" min="88.0" max="108.0" step="0.2" value="94.0" oninput="updateRadio()">
+      <div id="signal-meter">SINAL: ESTÁTICA PURA</div>
+      <div id="radio-output">...chiado...</div>
+    </div>
   </div>
 
+  <div id="log"></div>
+</div>
+
 <script>
-const c = document.getElementById('c'), ctx = c.getContext('2d');
-let luz = 100, min = 0, ang = 0, alvo = 0, sintonizado = false, fim = false;
-const sinais = [
-  "S.O.S... algo gigante está circulando a ilha...",
-  "A luz do farol é a única coisa que mantém eles longe...",
-  "Navio Fantasma: Não apague a torre, faroleiro!",
-  "Sinal desconhecido vindo do fundo do oceano..."
-];
+  let fuel = 100;
+  let sanity = 100;
+  let minutes = 0; // 0 = 00:00, 360 = 06:00
+  let fuseBroken = false;
+  let gameOver = false;
+  let gameLoop;
 
-function abastecer() {
-  if (fim) { location.reload(); return; }
-  luz = Math.min(100, luz + 25);
-  document.getElementById('luz').innerText = Math.floor(luz);
-}
+  // Áudio Procedural (Web Audio API)
+  let audioCtx, noiseGain, toneOsc, toneGain;
 
-function novoSinal() {
-  alvo = (Math.floor(Math.random() * 40) * 0.5 + 88).toFixed(1);
-  sintonizado = false;
-  document.getElementById('freqAlvo').innerText = "SINAL DETECTADO!";
-  document.getElementById('msg').style.color = "#ffaa00";
-  document.getElementById('msg').innerText = "Gire o botão do rádio para achar o sinal!";
-}
+  const signals = [
+    { freq: 91.4, found: false, text: "[CÓDIGO MORSE DECIFRADO]: 'NAVIO AURORA... SEM TRIPULAÇÃO A BORDO... ESTAMOS DERIVA...'" },
+    { freq: 98.8, found: false, text: "[VOZ DISTORCIDA]: 'Não olhe para a água quando a luz apagar. Ele sobe pelas pedras.'" },
+    { freq: 104.2, found: false, text: "[TRANSMISSÃO DE EMERGÊNCIA]: 'Farol da Ponta Negra, aqui é a Guarda Costeira. Nenhuma embarcação foi autorizada na sua área hoje.'" }
+  ];
 
-function checarRadio() {
-  const val = parseFloat(document.getElementById('dial').value).toFixed(1);
-  document.getElementById('freqAtual').innerText = val;
-  if (!sintonizado && alvo > 0 && Math.abs(val - alvo) <= 0.5) {
-    sintonizado = true;
-    alvo = 0;
-    document.getElementById('freqAlvo').innerText = "SINTONIZADO";
-    document.getElementById('msg').style.color = "#00ffcc";
-    document.getElementById('msg').innerText = "📻 " + sinais[Math.floor(Math.random() * sinais.length)];
+  function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Gerador de chiado (estática)
+    const bufferSize = audioCtx.sampleRate * 2;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+    const whiteNoise = audioCtx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+    whiteNoise.loop = true;
+
+    noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0.03;
+    whiteNoise.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    whiteNoise.start();
+
+    // Oscilador para apito de sintonia
+    toneOsc = audioCtx.createOscillator();
+    toneOsc.type = 'sine';
+    toneOsc.frequency.value = 520;
+    toneGain = audioCtx.createGain();
+    toneGain.gain.value = 0;
+    toneOsc.connect(toneGain);
+    toneGain.connect(audioCtx.destination);
+    toneOsc.start();
   }
-}
 
-setInterval(() => {
-  if (fim) return;
-  min += 5;
-  luz -= (alvo > 0 ? 2.2 : 1.1);
-  if (min % 60 === 0 && alvo === 0) novoSinal();
-  
-  let h = String(Math.floor(min / 60)).padStart(2, '0');
-  let m = String(min % 60).padStart(2, '0');
-  document.getElementById('hora').innerText = `${h}:${m}`;
-  document.getElementById('luz').innerText = Math.max(0, Math.floor(luz));
-
-  if (luz <= 0) {
-    fim = true;
-    document.getElementById('msg').style.color = "#ff2a55";
-    document.getElementById('msg').innerText = "A LUZ APAGOU! Algo subiu no penhasco... (Clique em Abastecer para reiniciar)";
-  } else if (min >= 360) {
-    fim = true;
-    document.getElementById('msg').style.color = "#00ff66";
-    document.getElementById('msg').innerText = "☀️ AMANHECEU! Você sobreviveu à noite no farol!";
+  function addLog(msg, type = "") {
+    const log = document.getElementById("log");
+    const entry = document.createElement("div");
+    entry.className = "log-entry " + type;
+    entry.textContent = `[${formatTime(minutes)}] ${msg}`;
+    log.prepend(entry);
   }
-}, 800);
 
-function desenhar() {
-  ctx.clearRect(0, 0, c.width, c.height);
-  // Mar e Penhasco
-  ctx.fillStyle = "#061a3a"; ctx.fillRect(0, 170, c.width, 50);
-  ctx.fillStyle = "#1c2331"; ctx.fillRect(0, 140, 90, 80);
-  // Torre do Farol
-  ctx.fillStyle = "#e0e0e0"; ctx.fillRect(30, 50, 30, 90);
-  ctx.fillStyle = "#ff2a55"; ctx.fillRect(30, 75, 30, 20); ctx.fillRect(30, 115, 30, 20);
-  // Feixe de Luz
-  if (luz > 0) {
-    ang += 0.03;
-    ctx.fillStyle = `rgba(255, 221, 87, ${luz / 180})`;
-    ctx.beginPath(); ctx.moveTo(45, 45);
-    ctx.lineTo(500, 120 + Math.sin(ang) * 90);
-    ctx.lineTo(500, 180 + Math.sin(ang) * 90);
-    ctx.fill();
-  } else {
-    // Olhos no escuro
-    ctx.fillStyle = "#ff2a55";
-    ctx.fillRect(250, 155, 5, 5); ctx.fillRect(265, 155, 5, 5);
+  function formatTime(mins) {
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}`;
   }
-  requestAnimationFrame(desenhar);
-}
-desenhar();
-</script>
-</body>
-</html>
+
+  function startGame() {
+    document.getElementById("start-screen").style.display = "none";
+    initAudio();
+    addLog("Turno iniciado. Tempestade se aproximando pelo leste.");
+    updateRadio();
+    gameLoop = setInterval(tick, 1000);
+  }
+
+  function tick() {
+    if (gameOver) return;
+
+    minutes += 3; // Cada segundo real = 3 minutos no jogo (2 min reais = 6h de turno)
+    document.getElementById("clock").textContent = formatTime(minutes);
+
+    // Vitória às 06:00
+    if (minutes >= 360) {
+      endGame("AMANHECEU! Você sobreviveu à primeira noite no farol.");
+      return;
+    }
+
+    // Evento aleatório de pane no disjuntor
+    if (!fuseBroken && Math.random() < 0.06) {
+      fuseBroken = true;
+      document.getElementById("btn-fix").disabled = false;
+      addLog("ALERTA: Um raio atingiu a torre! O disjuntor desarmou!", "log-warn");
+    }
+
+    // Consumo de combustível e impacto na sanidade
+    const lightOn = fuel > 0 && !fuseBroken;
+    const statusEl = document.getElementById("beacon-status");
+
+    if (lightOn) {
+      fuel = Math.max(0, fuel - 1.4);
+      statusEl.textContent = "ATIVO";
+      statusEl.className = "";
+    } else {
+      sanity = Math.max(0, sanity - 3.5);
+      statusEl.textContent = "APAGADO (PERIGO)";
+      statusEl.className = "danger";
+      if (Math.random() < 0.3) addLog("Passos pesados ecoam na escada em espiral no escuro...", "log-warn");
+    }
+
+    updateUI();
+
+    if (sanity <= 0) {
+      endGame("FIM DE JOGO: A escuridão tomou conta da sua mente. Ninguém nunca mais encontrou o faroleiro.");
+    }
+  }
+
+  function updateUI() {
+    document.getElementById("fuel-text").textContent = Math.round(fuel) + "%";
+    document.getElementById("fuel-bar").style.width = fuel + "%";
+    document.getElementById("san-text").textContent = Math.round(sanity) + "%";
+    document.getElementById("san-bar").style.width = sanity + "%";
+  }
+
+  function refuel() {
+    if (gameOver) return;
+    fuel = Math.min(100, fuel + 30);
+    addLog("Óleo bombeado para o reservatório da lâmpada.");
+    updateUI();
+  }
+
+  function fixFuse() {
+    if (!fuseBroken || gameOver) return;
+    fuseBroken = false;
+    document.getElementById("btn-fix").disabled = true;
+    addLog("Disjuntor religado. O feixe de luz voltou a girar.");
+  }
+
+  function updateRadio() {
+    const val = parseFloat(document.getElementById("freq-slider").value);
+    document.getElementById("freq-display").textContent = val.toFixed(1) + " MHz";
+
+    let closest = null;
+    let minDiff = 999;
+
+    signals.forEach(s => {
+      const diff = Math.abs(val - s.freq);
+      if (diff < minDiff) { minDiff = diff; closest = s; }
+    });
+
+    const meter = document.getElementById("signal-meter");
+    const output = document.getElementById("radio-output");
+
+    if (minDiff === 0) {
+      meter.textContent = "SINAL: CLARO (100%)";
+      meter.style.color = "#0be881";
+      output.textContent = closest.text;
+      if (noiseGain) noiseGain.gain.value = 0.005;
+      if (toneGain) toneGain.gain.value = 0.03;
+      if (!closest.found) {
+        closest.found = true;
+        addLog(`Nova transmissão interceptada em ${closest.freq} MHz!`, "log-mystery");
+      }
+    } else if (minDiff <= 1.2) {
+      meter.textContent = "SINAL: INTERFERÊNCIA PRÓXIMA...";
+      meter.style.color = "#ffa801";
+      output.textContent = "...bzzzt... algo está transmitindo perto desta frequência... krrrr...";
+      if (noiseGain) noiseGain.gain.value = 0.04;
+      if (toneGain) toneGain.gain.value = 0.015;
+    } else {
+      meter.textContent = "SINAL: ESTÁTICA PURA";
+      meter.style.color = "#808e9b";
+      output.textContent = "...chiado... vento e ondas... chiado...";
+      if (noiseGain) noiseGain.gain.value = 0.025;
+      if (toneGain) toneGain.gain.value = 0;
+    }
+  }
+
