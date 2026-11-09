@@ -3,326 +3,223 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fábrica de Pixel 2.0</title>
+  <title>Mundos Espelhados 2.0</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: #0b0b12;
-      color: #fff;
-      font-family: 'Courier New', Courier, monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      user-select: none;
+      margin: 0; background: #07070d; color: #fff;
+      font-family: 'Courier New', monospace; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; height: 100vh; user-select: none;
     }
-    h1 { margin-bottom: 6px; color: #00ffcc; text-shadow: 2px 2px #ff007f; font-size: 26px; }
-    #placar { font-size: 18px; margin-bottom: 10px; }
-    #statusEscudo { color: #00bfff; font-weight: bold; margin-left: 10px; }
-    canvas {
-      background-color: #161625;
-      border: 4px solid #00ffcc;
-      box-shadow: 0 0 25px rgba(0, 255, 204, 0.25);
-      max-width: 95vw;
-    }
-    #controles {
-      margin-top: 12px;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    h1 { color: #00ffcc; margin: 4px 0; text-shadow: 2px 2px #ff007f; font-size: 24px; }
+    #placar { font-size: 18px; margin-bottom: 8px; }
+    canvas { background: #10101e; border: 3px solid #00ffcc; border-radius: 8px; max-width: 96vw; box-shadow: 0 0 20px rgba(0,255,204,0.2); }
     button {
-      background-color: #ff007f;
-      color: white;
-      border: none;
-      padding: 12px 18px;
-      font-size: 16px;
-      font-family: inherit;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 6px;
+      margin-top: 12px; padding: 14px 34px; font-size: 18px; font-weight: bold;
+      background: linear-gradient(90deg, #00bfff, #ff007f); color: #fff; border: none; border-radius: 8px; cursor: pointer;
     }
-    #btnAtirar { background-color: #ffaa00; color: #111; }
-    #btnReiniciar { background-color: #00ffcc; color: #111; display: none; }
-    button:active { transform: scale(0.95); }
-    p.dica { margin-top: 10px; font-size: 13px; color: #aaa; text-align: center; }
+    button:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
-
-  <h1>FÁBRICA DE PIXEL 2.0</h1>
-  <div id="placar">
-    Pontos: <span id="pontos">0</span> | 
-    Recorde: <span id="recorde">0</span>
-    <span id="statusEscudo"></span>
-  </div>
-  <canvas id="jogo" width="400" height="500"></canvas>
-
-  <div id="controles">
-    <button id="btnEsq">◀ ESQ</button>
-    <button id="btnAtirar">🔥 ATIRAR</button>
-    <button id="btnReiniciar">JOGAR DE NOVO</button>
-    <button id="btnDir">DIR ▶</button>
-  </div>
-  <p class="dica">Setas (◀ ▶) para mover | Espaço para atirar<br>🟡 Moeda (+5 pts) | 🔵 Escudo protetor</p>
+  <h1>MUNDOS ESPELHADOS 2.0</h1>
+  <div id="placar">Pontos: <span id="pts">0</span> | Recorde: <span id="rec">0</span></div>
+  <canvas id="c" width="650" height="360"></canvas>
+  <button id="btn">⬆ PULAR / PULO DUPLO (ESPAÇO)</button>
 
   <script>
-    const canvas = document.getElementById('jogo');
-    const ctx = canvas.getContext('2d');
-    const elPontos = document.getElementById('pontos');
-    const elRecorde = document.getElementById('recorde');
-    const elEscudo = document.getElementById('statusEscudo');
-    const btnReiniciar = document.getElementById('btnReiniciar');
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    const elPts = document.getElementById('pts'), elRec = document.getElementById('rec');
+    const meio = c.height / 2;
+    let rec = localStorage.getItem('recEspelho2') || 0;
+    elRec.innerText = rec;
 
-    let recordeSalvo = localStorage.getItem('recordeFabricaPixel') || 0;
-    elRecorde.innerText = recordeSalvo;
+    let p1 = { x: 80, y: meio - 42, w: 24, h: 42, vy: 0, pulos: 0 };
+    let p2 = { x: 80, y: meio, w: 24, h: 42, vy: 0, pulos: 0 };
+    let obs = [], pts = 0, fim = false, frame = 0, vel = 6.2;
 
-    let jogador = { x: 180, y: 450, largura: 40, altura: 20, velocidade: 6, escudo: false };
-    let obstaculos = [];
-    let tiros = [];
-    let itens = [];
-    let particulas = [];
-    let pontos = 0;
-    let gameOver = false;
-    let teclas = { esquerda: false, direita: false };
-    let frame = 0;
-    let tempoUltimoTiro = 0;
-
-    function atirar() {
-      if (gameOver) return;
-      const agora = Date.now();
-      if (agora - tempoUltimoTiro > 250) {
-        tiros.push({ x: jogador.x + jogador.largura / 2 - 3, y: jogador.y - 10, largura: 6, altura: 14, velocidade: 9 });
-        tempoUltimoTiro = agora;
+    function pular() {
+      if (fim) {
+        obs = []; pts = 0; vel = 6.2; fim = false; elPts.innerText = 0;
+        p1.y = meio - p1.h; p1.vy = 0; p1.pulos = 0;
+        p2.y = meio; p2.vy = 0; p2.pulos = 0;
+        loop(); return;
       }
+      if (p1.pulos < 2) { p1.vy = -10.5; p1.pulos++; }
+      if (p2.pulos < 2) { p2.vy = 10.5; p2.pulos++; }
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = true;
-      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = true;
-      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') {
-        e.preventDefault();
-        atirar();
-      }
-    });
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = false;
-      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = false;
-    });
+    document.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); pular(); } });
+    document.getElementById('btn').onclick = pular;
+    c.onclick = pular;
 
-    const btnEsq = document.getElementById('btnEsq');
-    const btnDir = document.getElementById('btnDir');
-    const btnAtirar = document.getElementById('btnAtirar');
-
-    btnEsq.onmousedown = btnEsq.ontouchstart = () => teclas.esquerda = true;
-    btnEsq.onmouseup = btnEsq.ontouchend = () => teclas.esquerda = false;
-    btnDir.onmousedown = btnDir.ontouchstart = () => teclas.direita = true;
-    btnDir.onmouseup = btnDir.ontouchend = () => teclas.direita = false;
-    btnAtirar.onclick = atirar;
-
-    btnReiniciar.onclick = () => {
-      obstaculos = [];
-      tiros = [];
-      itens = [];
-      particulas = [];
-      pontos = 0;
-      elPontos.innerText = pontos;
-      jogador.x = 180;
-      jogador.escudo = false;
-      elEscudo.innerText = '';
-      gameOver = false;
-      btnReiniciar.style.display = 'none';
-      loop();
-    };
-
-    function criarExplosao(x, y, cor) {
-      for (let i = 0; i < 12; i++) {
-        particulas.push({
-          x, y,
-          vx: (Math.random() - 0.5) * 6,
-          vy: (Math.random() - 0.5) * 6,
-          vida: 25,
-          cor
-        });
-      }
-    }
-
-    function criarObstaculo() {
-      const largura = Math.floor(Math.random() * 55) + 30;
-      const x = Math.floor(Math.random() * (canvas.width - largura));
-      const velocidade = 2.8 + Math.min(pontos * 0.1, 6);
-      obstaculos.push({ x, y: -25, largura, altura: 22, velocidade });
-    }
-
-    function criarItem() {
-      const tipo = Math.random() < 0.75 ? 'moeda' : 'escudo';
-      const x = Math.floor(Math.random() * (canvas.width - 20));
-      itens.push({ x, y: -20, tamanho: 18, velocidade: 3.5, tipo });
-    }
-
-    function atualizar() {
-      if (teclas.esquerda && jogador.x > 0) jogador.x -= jogador.velocidade;
-      if (teclas.direita && jogador.x + jogador.largura < canvas.width) jogador.x += jogador.velocidade;
-
-      frame++;
-      if (frame % Math.max(22, 48 - Math.floor(pontos / 3)) === 0) criarObstaculo();
-      if (frame % 180 === 0) criarItem();
-
-      // Tiros
-      for (let i = tiros.length - 1; i >= 0; i--) {
-        tiros[i].y -= tiros[i].velocidade;
-        if (tiros[i].y < -20) tiros.splice(i, 1);
+    function desenharPersonagem(p, invertido) {
+      ctx.save();
+      if (invertido) {
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+        ctx.scale(1, -1);
+        ctx.translate(-(p.x + p.w / 2), -(p.y + p.h / 2));
       }
 
-      // Itens (Moedas e Escudo)
-      for (let i = itens.length - 1; i >= 0; i--) {
-        let item = itens[i];
-        item.y += item.velocidade;
+      const corCabelo = invertido ? '#ff2a55' : '#00bfff';
+      const corRoupa = invertido ? '#ffaa00' : '#00ffcc';
+      const passo = Math.sin(frame * 0.35) * 5;
+      const noAr = p.pulos > 0;
 
-        if (
-          jogador.x < item.x + item.tamanho &&
-          jogador.x + jogador.largura > item.x &&
-          jogador.y < item.y + item.tamanho &&
-          jogador.y + jogador.altura > item.y
-        ) {
-          if (item.tipo === 'moeda') {
-            pontos += 5;
-            elPontos.innerText = pontos;
-            criarExplosao(item.x, item.y, '#ffd700');
-          } else {
-            jogador.escudo = true;
-            elEscudo.innerText = '🛡️ ESCUDO';
-            criarExplosao(item.x, item.y, '#00bfff');
-          }
-          itens.splice(i, 1);
-          continue;
+      // Cabelo espetado bonito
+      ctx.fillStyle = corCabelo;
+      ctx.fillRect(p.x + 2, p.y, 20, 6);
+      ctx.fillRect(p.x, p.y + 3, 6, 8);
+      ctx.fillRect(p.x + 16, p.y - 3, 6, 5);
+
+      // Rosto e olho brilhante
+      ctx.fillStyle = '#ffdbac';
+      ctx.fillRect(p.x + 5, p.y + 6, 15, 11);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(p.x + 15, p.y + 9, 3, 4); // Olho
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(p.x + 16, p.y + 9, 1, 1); // Brilho do olho
+
+      // Roupa (Jaqueta estilosa com detalhe)
+      ctx.fillStyle = corRoupa;
+      ctx.fillRect(p.x + 5, p.y + 17, 14, 14);
+      ctx.fillStyle = '#161625';
+      ctx.fillRect(p.x + 10, p.y + 17, 4, 14); // Zíper/faixa da roupa
+
+      // Braços balançando
+      ctx.fillStyle = '#ffdbac';
+      const bracoY = noAr ? p.y + 12 : p.y + 19 - passo * 0.6;
+      ctx.fillRect(p.x + 9, bracoY, 6, 9);
+
+      // Calça e Tênis correndo
+      ctx.fillStyle = '#2b2d42';
+      if (noAr) {
+        ctx.fillRect(p.x + 4, p.y + 31, 7, 7);
+        ctx.fillRect(p.x + 13, p.y + 29, 7, 7);
+      } else {
+        ctx.fillRect(p.x + 5 + passo * 0.5, p.y + 31, 6, 8);
+        ctx.fillRect(p.x + 13 - passo * 0.5, p.y + 31, 6, 8);
+      }
+      // Tênis neon
+      ctx.fillStyle = corCabelo;
+      ctx.fillRect(p.x + 5 + (noAr ? 0 : passo * 0.5), p.y + 38, 7, 4);
+      ctx.fillRect(p.x + 13 - (noAr ? 0 : passo * 0.5), p.y + 38, 7, 4);
+
+      ctx.restore();
+    }
+
+    function desenharObstaculo(o) {
+      if (o.estilo === 'espinho') {
+        // Cristal/Espinho afiado neon
+        ctx.fillStyle = '#ff007f';
+        ctx.beginPath();
+        if (o.lado === 1) {
+          ctx.moveTo(o.x, meio);
+          ctx.lineTo(o.x + o.w / 2, meio - o.h);
+          ctx.lineTo(o.x + o.w, meio);
+        } else {
+          ctx.moveTo(o.x, meio);
+          ctx.lineTo(o.x + o.w / 2, meio + o.h);
+          ctx.lineTo(o.x + o.w, meio);
         }
-        if (item.y > canvas.height) itens.splice(i, 1);
-      }
-
-      // Obstáculos
-      for (let i = obstaculos.length - 1; i >= 0; i--) {
-        let obs = obstaculos[i];
-        obs.y += obs.velocidade;
-
-        // Colisão tiro x obstáculo
-        let destruido = false;
-        for (let j = tiros.length - 1; j >= 0; j--) {
-          let t = tiros[j];
-          if (
-            t.x < obs.x + obs.largura &&
-            t.x + t.largura > obs.x &&
-            t.y < obs.y + obs.altura &&
-            t.y + t.altura > obs.y
-          ) {
-            criarExplosao(obs.x + obs.largura / 2, obs.y + obs.altura / 2, '#ff007f');
-            tiros.splice(j, 1);
-            obstaculos.splice(i, 1);
-            pontos += 2;
-            elPontos.innerText = pontos;
-            destruido = true;
-            break;
-          }
-        }
-        if (destruido) continue;
-
-        // Colisão jogador x obstáculo
-        if (
-          jogador.x < obs.x + obs.largura &&
-          jogador.x + jogador.largura > obs.x &&
-          jogador.y < obs.y + obs.altura &&
-          jogador.y + jogador.altura > obs.y
-        ) {
-          if (jogador.escudo) {
-            jogador.escudo = false;
-            elEscudo.innerText = '';
-            criarExplosao(jogador.x + 20, jogador.y, '#00bfff');
-            obstaculos.splice(i, 1);
-            continue;
-          } else {
-            gameOver = true;
-            criarExplosao(jogador.x + 20, jogador.y, '#00ffcc');
-            if (pontos > recordeSalvo) {
-              recordeSalvo = pontos;
-              localStorage.setItem('recordeFabricaPixel', recordeSalvo);
-              elRecorde.innerText = recordeSalvo;
-            }
-            btnReiniciar.style.display = 'inline-block';
-          }
-        }
-
-        if (obs.y > canvas.height) {
-          obstaculos.splice(i, 1);
-          if (!gameOver) {
-            pontos++;
-            elPontos.innerText = pontos;
-          }
-        }
-      }
-
-      // Partículas
-      for (let i = particulas.length - 1; i >= 0; i--) {
-        let p = particulas[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vida--;
-        if (p.vida <= 0) particulas.splice(i, 1);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        // Serra giratória perigosa
+        const cx = o.x + o.w / 2;
+        const cy = o.lado === 1 ? meio - o.h / 2 : meio + o.h / 2;
+        const r = o.w / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(frame * 0.25);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = '#ff2a55';
+        ctx.fillRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
     }
 
-    function desenhar() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function loop() {
+      if (fim) return;
+      ctx.clearRect(0, 0, c.width, c.height);
 
-      // Jogador (estilo nave pixelada)
+      // Grade de fundo em movimento para dar velocidade
+      ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)';
+      ctx.lineWidth = 1;
+      const offsetGrade = (frame * vel) % 40;
+      for (let gx = -offsetGrade; gx < c.width; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, c.height); ctx.stroke();
+      }
+
+      // Chão laser central brilhante
       ctx.fillStyle = '#00ffcc';
-      ctx.fillRect(jogador.x, jogador.y + 6, jogador.largura, jogador.altura - 6);
-      ctx.fillRect(jogador.x + 14, jogador.y, 12, 8);
+      ctx.fillRect(0, meio - 2, c.width, 4);
 
-      // Borda do escudo se ativo
-      if (jogador.escudo) {
-        ctx.strokeStyle = '#00bfff';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(jogador.x - 5, jogador.y - 5, jogador.largura + 10, jogador.altura + 10);
+      // Física P1 (Cima)
+      p1.vy += 0.62; p1.y += p1.vy;
+      if (p1.y >= meio - p1.h) { p1.y = meio - p1.h; p1.vy = 0; p1.pulos = 0; }
+
+      // Física P2 (Baixo)
+      p2.vy -= 0.62; p2.y += p2.vy;
+      if (p2.y <= meio) { p2.y = meio; p2.vy = 0; p2.pulos = 0; }
+
+      desenharPersonagem(p1, false);
+      desenharPersonagem(p2, true);
+
+      // Gerador de obstáculos difíceis (espinhos altos, serras rápidas e combos)
+      frame++;
+      const intervalo = Math.max(36, 72 - Math.floor(pts / 2));
+      if (frame % intervalo === 0) {
+        const padrao = Math.floor(Math.random() * 4);
+        const estilo = Math.random() > 0.45 ? 'espinho' : 'serra';
+        const h = estilo === 'serra' ? 32 : 34 + Math.random() * 24;
+        const w = estilo === 'serra' ? 32 : 26;
+
+        if (padrao === 0) obs.push({ x: c.width, w, h, lado: 1, estilo, extraVel: 0 });
+        if (padrao === 1) obs.push({ x: c.width, w, h, lado: 2, estilo, extraVel: 0 });
+        if (padrao === 2) { // Duplo simultâneo
+          obs.push({ x: c.width, w, h: 32, lado: 1, estilo, extraVel: 0 });
+          obs.push({ x: c.width, w, h: 32, lado: 2, estilo, extraVel: 0 });
+        }
+        if (padrao === 3) { // Combo rápido um logo atrás do outro!
+          obs.push({ x: c.width, w: 24, h: 36, lado: 1, estilo: 'espinho', extraVel: 1.2 });
+          obs.push({ x: c.width + 130, w: 24, h: 36, lado: 2, estilo: 'espinho', extraVel: 1.2 });
+        }
       }
 
-      // Tiros
-      ctx.fillStyle = '#ffaa00';
-      for (let t of tiros) ctx.fillRect(t.x, t.y, t.largura, t.altura);
+      for (let i = obs.length - 1; i >= 0; i--) {
+        let o = obs[i];
+        o.x -= (vel + o.extraVel);
+        desenharObstaculo(o);
 
-      // Itens
-      for (let item of itens) {
-        ctx.fillStyle = item.tipo === 'moeda' ? '#ffd700' : '#00bfff';
-        ctx.fillRect(item.x, item.y, item.tamanho, item.tamanho);
+        let p = o.lado === 1 ? p1 : p2;
+        let oy = o.lado === 1 ? meio - o.h : meio;
+        // Hitbox justa (com pequena margem de 4px para não ser injusto)
+        if (p.x + 4 < o.x + o.w - 4 && p.x + p.w - 4 > o.x + 4 && p.y + 4 < oy + o.h - 4 && p.y + p.h - 4 > oy + 4) {
+          fim = true;
+          if (pts > rec) { rec = pts; localStorage.setItem('recEspelho2', rec); elRec.innerText = rec; }
+          ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, c.width, c.height);
+          ctx.fillStyle = '#ff2a55'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('GAME OVER!', c.width / 2, meio - 10);
+          ctx.fillStyle = '#fff'; ctx.font = '18px monospace';
+          ctx.fillText('Clique na tela ou em PULAR para tentar de novo', c.width / 2, meio + 25);
+          return;
+        }
+
+        if (o.x + o.w < 0) {
+          obs.splice(i, 1);
+          pts++; elPts.innerText = pts;
+          vel = Math.min(13, 6.2 + pts * 0.12);
+        }
       }
-
-      // Obstáculos
-      ctx.fillStyle = '#ff007f';
-      for (let obs of obstaculos) ctx.fillRect(obs.x, obs.y, obs.largura, obs.altura);
-
-      // Partículas
-      for (let p of particulas) {
-        ctx.fillStyle = p.cor;
-        ctx.fillRect(p.x, p.y, 4, 4);
-      }
-
-      if (gameOver) {
-Use o código com cuidado.
-ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.fillStyle = '#fff';
-ctx.font = 'bold 30px Courier New';
-ctx.textAlign = 'center';
-ctx.fillText('FIM DE JOGO!', canvas.width / 2, canvas.height / 2 - 10);
-ctx.font = '18px Courier New';
-ctx.fillStyle = '#00ffcc';
-ctx.fillText('Pontuação final: ' + pontos, canvas.width / 2, canvas.height / 2 + 25);
-}
-}
-function loop() {
-atualizar();
-desenhar();
-if (!gameOver) requestAnimationFrame(loop);
-}
-loop();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
