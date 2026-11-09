@@ -3,407 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Colony Builder</title>
+    <title>Colônia Espacial Alpha</title>
     <style>
         body {
-            background-color: #030a13;
+            margin: 0;
+            padding: 0;
+            background-color: #050b14;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
             user-select: none;
-        }
-
-        /* Barra de Recursos Superior */
-        .resources-bar {
-            display: flex;
-            justify-content: space-around;
-            background-color: #071726;
-            border: 1px solid #00ffff;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
-        }
-
-        .resource-item {
-            text-align: center;
-        }
-
-        .resource-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #8ab4f8;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .resource-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #00ffff;
-        }
-
-        /* Estrutura Principal */
-        .main-container {
-            display: flex;
-            gap: 20px;
-            height: calc(100vh - 120px);
-        }
-
-        /* Área Visual da Cidade */
-        .city-view {
-            flex: 1;
-            background-color: #040f1a;
-            border: 1px solid #1a365d;
-            border-radius: 4px;
-            position: relative;
             overflow: hidden;
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(6, 1fr);
-            gap: 4px;
-            padding: 10px;
         }
 
-        .grid-tile {
-            background-color: rgba(7, 23, 38, 0.6);
-            border: 1px dashed #102a45;
-            border-radius: 4px;
+        #game-container {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
 
-        .tile-label {
-            font-size: 9px;
-            color: #a0aec0;
-            position: absolute;
-            bottom: 2px;
+        /* Painel Superior de Recursos */
+        #top-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: #0a1424;
+            border-bottom: 2px solid #1a3a5f;
+            padding: 15px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .stat-box {
             text-align: center;
-            width: 100%;
-            white-space: nowrap;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            margin-top: 5px;
+        }
+
+        .text-green { color: #00ffcc; }
+        .text-blue { color: #3399ff; }
+        .text-yellow { color: #ffcc00; }
+        .text-cyan { color: #00ffff; }
+        .text-red { color: #ff4d4d; }
+
+        /* Área Principal */
+        #main-content {
+            display: flex;
+            flex: 1;
             overflow: hidden;
         }
 
-        /* Painel Lateral de Compras */
-        .shop-panel {
+        /* Canvas do Jogo (A parte preta corrigida) */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background-color: #02060c;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Menu Lateral de Construção */
+        #sidebar {
             width: 320px;
-            background-color: #071726;
-            border: 1px solid #1a365d;
-            border-radius: 4px;
+            background-color: #060d1a;
+            border-left: 2px solid #1a3a5f;
+            display: flex;
+            flex-direction: column;
             padding: 15px;
+            box-sizing: border-box;
             overflow-y: auto;
         }
 
-        .section-title {
+        .sidebar-title {
             font-size: 12px;
-            color: #00ffff;
             text-transform: uppercase;
-            border-bottom: 1px solid #1a365d;
-            padding-bottom: 5px;
-            margin-top: 15px;
-            margin-bottom: 10px;
             letter-spacing: 1px;
+            color: #5588bb;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
-        /* Cards de Construção */
-        .building-card {
-            background-color: #0c2338;
-            border: 1px solid #1a365d;
+        .category-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #88aacc;
+            margin: 15px 0 5px 0;
+            border-bottom: 1px solid #1a3a5f;
+            padding-bottom: 3px;
+        }
+
+        /* Itens de Construção */
+        .build-item {
+            background-color: #0f1b2f;
+            border: 1px solid #1e355e;
             border-radius: 4px;
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 10px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
-        .building-card:hover {
-            border-color: #00ffff;
-            background-color: #102f4c;
+        .build-item:hover {
+            background-color: #162947;
+            border-color: #3366cc;
         }
 
-        .building-card.active {
-            border-color: #ffaa00;
-            box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+        .build-item.selected {
+            background-color: #1a3a66;
+            border-color: #00ffcc;
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.3);
         }
 
-        .building-name {
-            font-size: 14px;
+        .item-name {
             font-weight: bold;
-            color: #ffaa00;
+            font-size: 14px;
             margin-bottom: 4px;
         }
 
-        .building-desc {
+        .item-desc {
             font-size: 11px;
-            color: #cbd5e0;
+            color: #aaa;
             margin-bottom: 6px;
             line-height: 1.3;
         }
 
-        .building-cost {
+        .item-cost {
             font-size: 11px;
             font-weight: bold;
-            color: #ff5555;
-        }
-
-        /* Alertas e Avisos */
-        .game-over-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(3, 10, 19, 0.95);
-            z-index: 1000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .game-over-title {
-            font-size: 48px;
-            color: #ff3333;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-
-        .btn-restart {
-            background-color: #00ffff;
-            color: #030a13;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <!-- Barra de Estatísticas -->
-    <div class="resources-bar">
-        <div class="resource-item">
-            <div class="resource-label">🟡 Créditos</div>
-            <div class="resource-value" id="res-credits">$1000</div>
+    <div id="game-container">
+        <!-- Top Bar -->
+        <div id="top-bar">
+            <div class="stat-box">
+                <div>CRÉDITOS</div>
+                <div id="stat-credits" class="stat-value text-green">$1000</div>
+            </div>
+            <div class="stat-box">
+                <div>POPULAÇÃO</div>
+                <div id="stat-population" class="stat-value text-blue">0</div>
+            </div>
+            <div class="stat-box">
+                <div>ENERGIA</div>
+                <div id="stat-energy" class="stat-value text-yellow">0 / 0</div>
+            </div>
+            <div class="stat-box">
+                <div>OXIGÊNIO</div>
+                <div id="stat-oxygen" class="stat-value text-cyan">100%</div>
+            </div>
+            <div class="stat-box">
+                <div>LIXO ACUMULADO</div>
+                <div id="stat-waste" class="stat-value text-red">0</div>
+            </div>
         </div>
-        <div class="resource-item">
-            <div class="resource-label">👥 População</div>
-            <div class="resource-value" id="res-pop">0</div>
-        </div>
-        <div class="resource-item">
-            <div class="resource-label">⚡ Energia</div>
-            <div class="resource-value" id="res-energy">0 / 0</div>
-        </div>
-        <div class="resource-item">
-            <div class="resource-label">💎 Oxigênio</div>
-            <div class="resource-value" id="res-oxygen">100%</div>
-        </div>
-        <div class="resource-item">
-            <div class="resource-label">🗑️ Lixo na Colônia</div>
-            <div class="resource-value" id="res-waste" style="color: #ff5555;">0</div>
-        </div>
-    </div>
 
-    <!-- Container Principal -->
-    <div class="main-container">
-        <!-- Grid de Construção da Cidade -->
-        <div class="city-view" id="city-grid"></div>
-
-        <!-- Menu Lateral -->
-        <div class="shop-panel">
-            <div style="font-size: 11px; color: #8ab4f8; margin-bottom: 10px; text-align: center;">
-                Selecione uma estrutura e clique no mapa para construir
+        <!-- Main Content -->
+        <div id="main-content">
+            <!-- Game Board (Preto) -->
+            <div id="canvas-container">
+                <canvas id="gameCanvas"></canvas>
             </div>
 
-            <div class="section-title">Infraestrutura</div>
-            <div class="building-card" data-id="road">
-                <div class="building-name" style="color: #ff3366;">Estrada Espacial</div>
-                <div class="building-desc">Conecta as estruturas básicas da colônia de maneira eficiente.</div>
-                <div class="building-cost">Custo: $10</div>
-            </div>
-            <div class="building-card" data-id="solar">
-                <div class="building-name" style="color: #ffaa00;">Painel Solar</div>
-                <div class="building-desc">Gera +20 de Energia limpa para abastecer os sistemas da cidade.</div>
-                <div class="building-cost">Custo: $150</div>
-            </div>
+            <!-- Sidebar -->
+            <div id="sidebar">
+                <div class="sidebar-title">Selecione uma estrutura e clique no mapa para construir</div>
+                
+                <div class="category-title">Infraestrutura</div>
+                <div class="build-item" data-type="road">
+                    <div class="item-name text-red">Estrada Espacial</div>
+                    <div class="item-desc">Conecta as estruturas básicas da colônia de maneira eficiente.</div>
+                    <div class="item-cost text-red">Custo: $10</div>
+                </div>
+                <div class="build-item" data-type="solar">
+                    <div class="item-name text-yellow">Painel Solar</div>
+                    <div class="item-desc">Gera +20 de Energia limpa para abastecer os sistemas da cidade.</div>
+                    <div class="item-cost text-red">Custo: $150</div>
+                </div>
 
-            <div class="section-title">Residências</div>
-            <div class="building-card" data-id="home_basic">
-                <div class="building-name" style="color: #33ccff;">Módulo Habitacional</div>
-                <div class="building-desc">Abriga +10 colonos. Consome 2 de energia por ciclo.</div>
-                <div class="building-cost">Custo: $100</div>
-            </div>
-            <div class="building-card" data-id="home_advanced">
-                <div class="building-name" style="color: #3333ff;">Condomínio Orbital</div>
-                <div class="building-desc">Abriga +40 colonos. Consome 6 de energia por ciclo.</div>
-                <div class="building-cost">Custo: $300</div>
-            </div>
+                <div class="category-title">Residências</div>
+                <div class="build-item" data-type="house1">
+                    <div class="item-name text-cyan">Módulo Habitacional</div>
+                    <div class="item-desc">Abriga +10 colonos. Consome 2 de energia por ciclo.</div>
+                    <div class="item-cost text-red">Custo: $100</div>
+                </div>
+                <div class="build-item" data-type="house2">
+                    <div class="item-name text-blue">Condomínio Orbital</div>
+                    <div class="item-desc">Abriga +40 colonos. Consome 6 de energia por ciclo.</div>
+                    <div class="item-cost text-red">Custo: $300</div>
+                </div>
 
-            <div class="section-title">Indústria e Lazer</div>
-            <div class="building-card" data-id="factory">
-                <div class="building-name" style="color: #00ffcc;">Fábrica Quântica</div>
-                <div class="building-desc">Gera +150 créditos, mas produz +5 de lixo e consome 5 de energia.</div>
-                <div class="building-cost">Custo: $250</div>
-            </div>
-            <div class="building-card" data-id="park">
-                <div class="building-name" style="color: #33ff33;">Praça Ecológica</div>
-                <div class="building-desc">Área verde que limpa 3 de lixo acumulado a cada ciclo tecnológico.</div>
-                <div class="building-cost">Custo: $120</div>
+                <div class="category-title">Indústria e Lazer</div>
+                <div class="build-item" data-type="factory">
+                    <div class="item-name class-green" style="color: #00ffaa;">Fábrica Quântica</div>
+                    <div class="item-desc">Gera +150 créditos, mas produz +5 de lixo e consome 5 de energia.</div>
+                    <div class="item-cost text-red">Custo: $250</div>
+                </div>
+                <div class="build-item" data-type="plaza">
+                    <div class="item-name text-green">Praça Ecológica</div>
+                    <div class="item-desc">Reduz -8 de lixo por ciclo. Melhora a qualidade de oxigênio (+5%).</div>
+                    <div class="item-cost text-red">Custo: $150</div>
+                </div>
             </div>
         </div>
-    </div>
-
-    <!-- Tela de Fim de Jogo -->
-    <div class="game-over-overlay" id="game-over">
-        <div class="game-over-title">COLÔNIA TOXICADA</div>
-        <div style="font-size: 18px; color: #aaa; margin-bottom: 30px; text-align: center; max-width: 500px;">
-            O nível de oxigênio chegou a 0% devido ao excesso de lixo industrial não tratado no solo!
-        </div>
-        <button class="btn-restart" onclick="restartGame()">Recomeçar Missão</button>
     </div>
 
     <script>
-        // Configurações das construções
-        const BUILDING_TYPES = {
-            road: { name: 'Estrada', icon: '🚀', cost: 10, energyGen: 0, energyCons: 0, pop: 0, waste: 0, income: 0, clean: 0 },
-            solar: { name: 'Painel Solar', icon: '☀️', cost: 150, energyGen: 20, energyCons: 0, pop: 0, waste: 0, income: 0, clean: 0 },
-            home_basic: { name: 'Módulo Habit.', icon: '🏠', cost: 100, energyGen: 0, energyCons: 2, pop: 10, waste: 1, income: 0, clean: 0 },
-            home_advanced: { name: 'Cond. Orbital', icon: '🏢', cost: 300, energyGen: 0, energyCons: 6, pop: 40, waste: 2, income: 0, clean: 0 },
-            factory: { name: 'Fábrica Q.', icon: '🏭', cost: 250, energyGen: 0, energyCons: 5, pop: 0, waste: 6, income: 150, clean: 0 },
-            park: { name: 'Praça Ecol.', icon: '🌳', cost: 120, energyGen: 0, energyCons: 1, pop: 0, waste: 0, income: 0, clean: 4 }
+        // Configurações e variáveis do Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // Tamanho da Grade (Grid)
+        const TILE_SIZE = 50;
+        let rows = 0;
+        let cols = 0;
+        let grid = [];
+
+        // Estado do Jogo
+        let game = {
+            credits: 1000,
+            population: 0,
+            energyUsed: 0,
+            energyTotal: 0,
+            oxygen: 100,
+            waste: 0
         };
 
-        // Estado inicial do jogo
-        let gameState = {
-            credits: 1000,
+        // Tipos de Prédios e atributos
+        const BUILDING_TYPES = {
+            road:   { name: 'Estrada Espacial', cost: 10,  color: '#445577', energyGen: 0, energyCons: 0, pop: 0, waste: 0, oxy: 0, symbol: '═' },
+            solar:  { name: 'Painel Solar',     cost: 150, color: '#ffcc00', energyGen: 20, energyCons: 0, pop: 0, waste: 0, oxy: 0, symbol: '☀' },
+            house1: { name: 'Módulo Habitac.',  cost: 100, color: '#00ffff', energyGen: 0, energyCons: 2, pop: 10, waste: 1, oxy: 0, symbol: '⌂' },
+            house2: { name: 'Condomínio Orb.',  cost: 300, color: '#3399ff', energyGen: 0, energyCons: 6, pop: 40, waste: 3, oxy: 0, symbol: '⚃' },
+            factory:{ name: 'Fábrica Quântica', cost: 250, color: '#00ffaa', energyGen: 0, energyCons: 5, pop: 0, waste: 5, oxy: -5, symbol: '⚙' },
+            plaza:  { name: 'Praça Ecológica',  cost: 150, color: '#22cc66', energyGen: 0, energyCons: 0, pop: 0, waste: -8, oxy: 5, symbol: '♣' }
+        };
+
+        let selectedType = null;
+
+        // Ajustar tamanho do canvas dinamicamente
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            cols = Math.floor(canvas.width / TILE_SIZE);
+            rows = Math.floor(canvas.height / TILE_SIZE);
+            
+            // Inicializar ou reajustar matriz da grade sem perder dados antigos
+            let newGrid = Array(rows).fill().map(() => Array(cols).fill(null));
+            for(let r=0; r<Math.min(rows, grid.length); r++) {
+                for(let c=0; c<Math.min(cols, grid[r].length); c++) {
+                    newGrid[r][c] = grid[r][c];
+                }
+            }
+            grid = newGrid;
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Seleção de itens na barra lateral
+        document.querySelectorAll('.build-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.build-item').forEach(i => i.classList.remove('selected'));
+                if (selectedType === item.dataset.type) {
 Use o código com cuidado.
-oxygen: 100,
-waste: 0,
-selectedBuilding: null,
-grid: Array(48).fill(null) // Grid de 8x6 = 48 blocos
-};
-// Inicialização do Jogo
-const gridContainer = document.getElementById('city-grid');
-const cards = document.querySelectorAll('.building-card');
-// Criação dinâmica do mapa quadrado
-function createGrid() {
-gridContainer.innerHTML = '';
-gameState.grid.forEach((tile, index) => {
-const tileEl = document.createElement('div');
-tileEl.className = 'grid-tile';
-tileEl.dataset.index = index;
-if (tile) {
-tileEl.innerText = tile.icon;
-const label = document.createElement('div');
-label.className = 'tile-label';
-label.innerText = tile.name;
-tileEl.appendChild(label);
-}
-tileEl.addEventListener('click', () => buildOnTile(index));
-gridContainer.appendChild(tileEl);
-});
-}
-// Seleção do tipo de prédio a comprar
-cards.forEach(card => {
-card.addEventListener('click', () => {
-cards.forEach(c => c.classList.remove('active'));
-if (gameState.selectedBuilding === card.dataset.id) {
-gameState.selectedBuilding = null;
+selectedType = null; // Deselecionar
 } else {
-gameState.selectedBuilding = card.dataset.id;
-card.classList.add('active');
+selectedType = item.dataset.type;
+item.classList.add('selected');
 }
 });
 });
-// Construir no local selecionado
-function buildOnTile(index) {
-if (!gameState.selectedBuilding) return;
-if (gameState.grid[index] !== null) return; // Bloco já ocupado
-const building = BUILDING_TYPES[gameState.selectedBuilding];
-if (gameState.credits >= building.cost) {
-gameState.credits -= building.cost;
-gameState.grid[index] = { ...building };
-// Limpa a seleção após construir
-gameState.selectedBuilding = null;
-cards.forEach(c => c.classList.remove('active'));
-createGrid();
-updateResources();
+// Clique no canvas para posicionar estruturas
+canvas.addEventListener('click', (e) => {
+if (!selectedType) return;
+// Detectar qual quadrado foi clicado baseado nas coordenadas reais do mouse
+const rect = canvas.getBoundingClientRect();
+const mouseX = e.clientX - rect.left;
+const mouseY = e.clientY - rect.top;
+const c = Math.floor(mouseX / TILE_SIZE);
+const r = Math.floor(mouseY / TILE_SIZE);
+// Verificar limites da grade
+if (r >= 0 && r < rows && c >= 0 && c < cols) {
+const info = BUILDING_TYPES[selectedType];
+// Verificar se o quadrado está vazio e se tem dinheiro suficiente
+if (grid[r][c] === null) {
+if (game.credits >= info.cost) {
+game.credits -= info.cost;
+grid[r][c] = selectedType;
+updateStats();
+draw();
 } else {
-alert("Créditos insuficientes para comprar este projeto!");
+alert("Créditos insuficientes para construir esta estrutura!");
 }
+} else {
+// Se clicar em cima de um prédio existente, remove ele (Bulldozer)
+const oldInfo = BUILDING_TYPES[grid[r][c]];
+game.credits += Math.floor(oldInfo.cost * 0.5); // Devolve metade do valor
+grid[r][c] = null;
+updateStats();
+draw();
 }
-// Atualizar recursos e fazer cálculos em tempo real
-function updateResources() {
-let totalPop = 0;
-let energyGen = 0;
-let energyCons = 0;
-gameState.grid.forEach(tile => {
-if (tile) {
-totalPop += tile.pop;
-energyGen += tile.energyGen;
-energyCons += tile.energyCons;
 }
 });
-document.getElementById('res-credits').innerText = $${gameState.credits};
-document.getElementById('res-pop').innerText = totalPop;
-document.getElementById('res-energy').innerText = ${energyCons} / ${energyGen};
-document.getElementById('res-oxygen').innerText = ${Math.floor(gameState.oxygen)}%;
-document.getElementById('res-waste').innerText = gameState.waste;
-// Alerta de energia crítica
-const energyValueEl = document.getElementById('res-energy');
-if (energyCons > energyGen) {
-energyValueEl.style.color = '#ff5555';
-} else {
-energyValueEl.style.color = '#00ffff';
+// Atualizar lógica de recursos do jogo
+function updateStats() {
+let pop = 0;
+let eGen = 0;
+let eCons = 0;
+// Percorre a grade calculando os dados em tempo real
+for (let r = 0; r < rows; r++) {
+for (let c = 0; c < cols; c++) {
+if (grid[r][c]) {
+let b = BUILDING_TYPES[grid[r][c]];
+pop += b.pop;
+eGen += b.energyGen;
+eCons += b.energyCons;
 }
 }
-// Loop de simulação (Executado a cada 2 segundos)
+}
+game.population = pop;
+game.energyTotal = eGen;
+game.energyUsed = eCons;
+// Renderizar na tela nos elementos HTML correspondentes
+document.getElementById('stat-credits').innerText = $${game.credits};
+document.getElementById('stat-population').innerText = game.population;
+document.getElementById('stat-energy').innerText = ${game.energyUsed} / ${game.energyTotal};
+document.getElementById('stat-oxygen').innerText = ${game.oxygen}%;
+document.getElementById('stat-waste').innerText = game.waste;
+}
+// Loop de ciclos da colônia (Acontece a cada 3 segundos)
 setInterval(() => {
-let periodicIncome = 0;
-let periodicWaste = 0;
-let periodicClean = 0;
-gameState.grid.forEach(tile => {
-if (tile) {
-periodicIncome += tile.income;
-periodicWaste += tile.waste;
-periodicClean += tile.clean;
-}
-});
-// Processamento econômico e ecológico
-gameState.credits += periodicIncome;
-// O lixo aumenta pelas indústrias e diminui pelas praças ecológicas
-gameState.waste = Math.max(0, gameState.waste + periodicWaste - periodicClean);
-// Mecânica do impacto ambiental: lixo acumulado asfixia o oxigênio livre
-if (gameState.waste > 0) {
-gameState.oxygen -= (gameState.waste * 0.15);
+let creditIncome = 0;
+let wasteGen = 0;
+let oxyGen = 0;
+for (let r = 0; r < rows; r++) {
+for (let c = 0; c < cols; c++) {
+if (grid[r][c]) {
+let b = BUILDING_TYPES[grid[r][c]];
+wasteGen += b.waste;
+oxyGen += b.oxy;
+if (grid[r][c] === 'factory') {
+// Fábricas dão dinheiro se houver energia disponível
+if (game.energyTotal >= game.energyUsed) {
+creditIncome += 150;
 } else {
-gameState.oxygen = Math.min(100, gameState.oxygen + 1); // Recuperação lenta natural
+creditIncome += 30; // Rendimento muito baixo sem luz
 }
-// Checagem de derrota total
-if (gameState.oxygen <= 0) {
-gameState.oxygen = 0;
-document.getElementById('game-over').style.display = 'flex';
 }
-updateResources();
-}, 2000);
-// Resetar o simulador
-function restartGame() {
-gameState = {
-credits: 1000,
-oxygen: 100,
-waste: 0,
-selectedBuilding: null,
-grid: Array(48).fill(null)
-};
-document.getElementById('game-over').style.display = 'none';
-createGrid();
-updateResources();
 }
-// Início
-createGrid();
-updateResources();
+}
+}
+// Aplicar receitas e custos por ciclo
+game.credits += creditIncome;
+game.waste = Math.max(0, game.waste + wasteGen);
+game.oxygen = Math.min(100, Math.max(0, game.oxygen + oxyGen));
+// Efeito colateral do lixo no chão: reduz oxigênio aos poucos se acumular demais
+if (game.waste > 50) {
+game.oxygen = Math.max(0, game.oxygen - 3);
+}
+updateStats();
+draw();
+}, 3000);
+// Desenhar a interface gráfica dentro da área preta (Canvas)
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Desenhar linhas de grade sutis para guiar a construção
+ctx.strokeStyle = '#0d1b30';
+ctx.lineWidth = 1;
+for (let c = 0; c <= cols; c++) {
+ctx.beginPath();
+ctx.moveTo(c * TILE_SIZE, 0);
+ctx.lineTo(c * TILE_SIZE, canvas.height);
+ctx.stroke();
+}
+for (let r = 0; r <= rows; r++) {
+ctx.beginPath();
+ctx.moveTo(0, r * TILE_SIZE);
+ctx.lineTo(canvas.width, r * TILE_SIZE);
+ctx.stroke();
+}
+// Desenhar os prédios colocados na matriz
+for (let r = 0; r < rows; r++) {
+for (let c = 0; c < cols; c++) {
+if (grid[r][c]) {
+let b = BUILDING_TYPES[grid[r][c]];
+// Fundo do prédio
+ctx.fillStyle = b.color + '33'; // Cor com transparência
+ctx.fillRect(c * TILE_SIZE + 2, r * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+// Borda neon do prédio
+ctx.strokeStyle = b.color;
+ctx.lineWidth = 2;
+ctx.strokeRect(c * TILE_SIZE + 2, r * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+// Símbolo visual/Ícone centralizado
+ctx.fillStyle = b.color;
+ctx.font = '22px Arial';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText(b.symbol, c * TILE_SIZE + TILE_SIZE/2, r * TILE_SIZE + TILE_SIZE/2);
+}
+}
+}
+}
+// Inicialização
+resizeCanvas();
+updateStats();
