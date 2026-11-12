@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Robots vs Humans — Evolução e Superchefes 1.4</title>
+<style>
+:root{--navy:#091827;--panel:#10283c;--line:#31546b;--cyan:#55e8ef;--gold:#ffd16c}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#102334;color:#effaff;font-family:Inter,system-ui,Arial}
+#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:fixed;z-index:3;top:10px;left:10px;right:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;pointer-events:none}
+.stat,.panel{background:#0b2034ed;border:1px solid #42657b;border-radius:13px;padding:8px 11px;box-shadow:0 7px 20px #0005;backdrop-filter:blur(8px)}
+.stat{font-size:13px;font-weight:850}.stat b{color:var(--cyan);margin-left:5px}
+#hint{margin-left:auto;font-size:12px;color:#d2e9f4;text-shadow:0 2px 4px #000;max-width:210px;text-align:right}
+.bottom{position:fixed;z-index:4;left:10px;right:10px;bottom:10px;display:flex;align-items:end;justify-content:space-between;gap:10px;pointer-events:none}
+.panel{pointer-events:auto}.shop{display:grid;grid-template-columns:repeat(4,minmax(75px,1fr));gap:6px}
+button{border:1px solid #456c83;border-radius:10px;background:#193b55;color:#f2fbff;font-weight:800;padding:9px 10px;font-size:12px;cursor:pointer}
+button:active{transform:scale(.97)}button.active{outline:2px solid var(--cyan);background:#20556a}
+button:disabled{opacity:.4;cursor:not-allowed}.primary{background:#087f8e;border-color:#51e4eb}.gold{background:#73521c;border-color:#e5b64c}
+#selection{font-size:12px;line-height:1.45;color:#c8dce9;min-width:190px}#selection strong{color:white;font-size:14px}
+.wave-start{position:fixed;z-index:8;right:12px;top:82px;min-width:170px;padding:12px 16px;font-size:14px;box-shadow:0 7px 22px #0008;border:2px solid #67eff4}
+.wave-start:disabled{opacity:.72;background:#334b5d}
+.auto-skip{position:fixed;z-index:8;right:190px;top:82px;padding:12px 14px;border:2px solid #70899a;background:#172f43;color:#c8dce9;font-weight:900;border-radius:10px}
+.auto-skip.on{border-color:#65edb8;background:#14533f;color:#fff}
+.difficulty-box{margin:15px 0;padding:12px;border:1px solid #47718a;border-radius:13px;background:#0c2238}
+.difficulty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+.difficulty{padding:11px 7px;border:1px solid #54768b;border-radius:9px;background:#1a354b;color:#d9eaf2;font-weight:900}
+.difficulty.active{border:2px solid #55e8ef;background:#14516a;color:white;box-shadow:0 0 14px #55e8ef55}
+#difficultyInfo{font-size:11px;color:#a9c6d5;margin-top:9px}
+@media(max-width:600px){.auto-skip{right:10px;top:132px;padding:9px 10px}.wave-start{top:78px;right:10px}}
+#toast{position:fixed;z-index:7;top:82px;left:50%;transform:translateX(-50%);background:#102c42;border:1px solid var(--cyan);border-radius:22px;padding:8px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+#overlay{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#06111ddd;padding:18px}
+.modal{max-width:480px;width:100%;background:#10283c;border:1px solid #47718a;border-radius:20px;padding:22px;text-align:center;box-shadow:0 20px 70px #000a}
+.modal h1{font-size:clamp(25px,6vw,34px);margin:4px 0}.modal p{color:#c5dce9;line-height:1.5;font-size:14px}.modal button{margin-top:8px;padding:12px 20px}
+#bossbar{position:fixed;z-index:3;top:65px;left:50%;transform:translateX(-50%);width:min(340px,75vw);display:none;background:#291b2a;border:1px solid #f3b84c;border-radius:8px;padding:5px}
+#bossfill{height:9px;width:100%;background:#f3b84c;border-radius:5px}#bosslabel{text-align:center;font-size:11px;font-weight:900;margin-bottom:3px}
+@media(max-width:650px){.hud{top:6px;left:6px;right:6px;gap:4px}.stat{font-size:11px;padding:7px 8px}.bottom{left:6px;right:6px;bottom:6px;display:flex;flex-direction:column;align-items:stretch}.panel{padding:7px}.shop{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}button{font-size:10px;padding:8px 3px}#selection{min-width:0}#hint{display:none}#bossbar{top:90px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div class="hud">
+ <div class="stat">❤️ Base <b id="lives">25</b></div><div class="stat">🪙 Sucata <b id="cash">320</b></div>
+ <div class="stat">🌊 Onda <b id="wave">0</b></div><div class="stat">👥 Inimigos <b id="enemies">0</b></div>
+ <div class="stat">☠️ Chefão <b id="boss">—</b></div><div id="hint">Monte sua defesa e proteja o núcleo!</div>
+</div>
+<div id="bossbar"><div id="bosslabel">COMANDANTE TITÃ</div><div id="bossfill"></div></div>
+<div id="toast"></div>
+<button id="start" class="primary wave-start">▶ INICIAR ONDA 1</button>
+<button id="autoSkip" class="auto-skip" type="button" aria-pressed="false">⏩ AUTO PULAR: OFF</button>
+<div class="bottom">
+ <div class="panel"><div style="font-weight:900;font-size:13px;margin:0 0 6px 2px">🛠️ FÁBRICA DE ROBÔS — escolha uma unidade <span id="towerCount" style="float:right;color:#75e9ef">0/15</span></div>
+ <div class="shop">
+  <button id="buy-guard" class="active">🤖 Guarda<br>70</button><button id="buy-gunner">🔫 Metralha<br>115</button>
+  <button id="buy-sniper">🎯 Sniper<br>135</button><button id="buy-drone">🚁 Drone<br>165</button>
+  <button id="buy-tank">🛡️ Tanque<br>190</button><button id="buy-rocket">🚀 Foguete<br>210</button>
+  <button id="buy-mech">🦾 Mecha<br>260</button><button id="buy-flak">⚡ Antiaéreo<br>180</button>
+ </div></div>
+ <div class="panel"><div id="selection"><strong>Central de comando</strong><br>Escolha um robô e toque no gramado para posicioná-lo.</div></div>
+</div>
+<div id="overlay"><div class="modal"><div style="font-size:45px">🤖⚔️🪖</div><h1>ROBOTS <span style="color:#55e8ef">VS</span> HUMANS</h1>
+<p><b>VERSÃO 1.8 — HUMANOS MAIS RESISTENTES</b><br>Soldados voxelizados, robôs especializados, veículos e helicóptero militar detalhado. Construa uma defesa robótica com 8 unidades diferentes!</p>
+<p style="font-size:12px">Toque/clique no gramado para construir. Selecione uma torre para ver seu alcance de tiro e melhorias. Cada torre evolui até o nível 4 e você pode posicionar no máximo 15 robôs. Escolha a dificuldade antes de começar.</p>
+<div class="difficulty-box"><b>ESCOLHA A DIFICULDADE</b><div class="difficulty-grid">
+<button class="difficulty active" data-difficulty="easy">🟢 FÁCIL</button>
+<button class="difficulty" data-difficulty="normal">🔵 MÉDIO</button>
+<button class="difficulty" data-difficulty="hard">🟠 DIFÍCIL</button>
+<button class="difficulty" data-difficulty="impossible">☠️ IMPOSSÍVEL</button>
+</div><div id="difficultyInfo">Mais dinheiro e inimigos mais fracos.</div></div>
+<button class="primary" id="play">ENTRAR NO CAMPO DE BATALHA</button></div></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const $=id=>document.getElementById(id), root=$('game');
+let renderer,scene,camera;
+try{
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x91cbd8);scene.fog=new THREE.Fog(0x91cbd8,35,75);
+ camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,150);
+ renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+ renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;root.appendChild(renderer.domElement);
+}catch(err){$('overlay').innerHTML='<div class="modal"><h1>Não foi possível iniciar o 3D</h1><p>Seu navegador não conseguiu iniciar o WebGL. Atualize o navegador e habilite a aceleração de hardware.</p><p>'+String(err)+'</p></div>';throw err}
+scene.add(new THREE.HemisphereLight(0xeaffff,0x435c45,2.15));
+const sun=new THREE.DirectionalLight(0xfff2d8,2.4);sun.position.set(-12,22,13);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=24;sun.shadow.camera.bottom=-24;scene.add(sun);
+const mat=(c,r=.8,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const M={grass:mat(0x559d62),road:mat(0xb5a17b),road2:mat(0x9d8968),line:mat(0xf0dfad),curb:mat(0x665d4d),blue:mat(0x16a9c2,.38,.5),dark:mat(0x20394b,.42,.45),gold:mat(0xffc94f,.35,.5),red:mat(0xb8473f),skin:mat(0xe3b38b),human:mat(0x71804e),steel:mat(0x778b96,.35,.65),black:mat(0x202a31,.5,.3),glow:new THREE.MeshStandardMaterial({color:0x55f4ff,emissive:0x19b8d1,emissiveIntensity:1.3})};
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(42,34),M.grass);floor.rotation.x=-Math.PI/2;floor.position.y=-.13;floor.receiveShadow=true;scene.add(floor);
+const grid=new THREE.GridHelper(42,42,0x477c57,0x70b17a);grid.position.y=-.115;scene.add(grid);
+// Estrada sinuosa em faixa contínua, com acostamento, meio-fio e linha central.
+const pts=[new THREE.Vector3(-17,0,-8),new THREE.Vector3(-13,0,-8),new THREE.Vector3(-9,0,-8),new THREE.Vector3(-9,0,1),new THREE.Vector3(-3,0,1),new THREE.Vector3(3,0,1),new THREE.Vector3(3,0,-7),new THREE.Vector3(10,0,-7),new THREE.Vector3(13,0,-7),new THREE.Vector3(13,0,7),new THREE.Vector3(19,0,7)];
+const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal',.15);
+function ribbon(width,y,material,offset=0){const verts=[],uv=[],idx=[],N=260;for(let i=0;i<=N;i++){const t=i/N,p=curve.getPoint(t),tan=curve.getTangent(t),side=new THREE.Vector3(-tan.z,0,tan.x);for(let s of [-1,1]){const q=p.clone().addScaledVector(side,s*(width/2+offset));q.y=y;verts.push(q.x,q.y,q.z);uv.push(0,t*12)}}for(let i=0;i<N;i++){let a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();const mesh=new THREE.Mesh(g,material);mesh.receiveShadow=true;scene.add(mesh);return mesh}
+ribbon(4.8,.005,M.road2);ribbon(4.35,.045,M.road);
+function roadDash(t){const p=curve.getPoint(t);const d=curve.getTangent(t);const side=new THREE.Vector3(-d.z,0,d.x);const mesh=new THREE.Mesh(new THREE.BoxGeometry(.16,.025,.7),M.line);mesh.position.copy(p);mesh.position.y=.075;mesh.rotation.y=-Math.atan2(d.z,d.x);scene.add(mesh)}
+for(let t=.015;t<.99;t+=.025)roadDash(t);
+for(let s of [-1,1]){const pts2=[];for(let i=0;i<=120;i++){const p=curve.getPoint(i/120),d=curve.getTangent(i/120);p.add(new THREE.Vector3(-d.z,0,d.x).multiplyScalar(s*2.42));p.y=.12;pts2.push(p)}const rail=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts2),160,.075,6,false),M.curb);scene.add(rail)}
+const entry=curve.getPointAt(.075);const beacon=new THREE.Group();beacon.position.set(entry.x,.08,entry.z);scene.add(beacon);
+const beaconRing=new THREE.Mesh(new THREE.TorusGeometry(.72,.055,8,28),M.red);beaconRing.rotation.x=Math.PI/2;beacon.add(beaconRing);
+const beaconPost=new THREE.Mesh(new THREE.CylinderGeometry(.08,.12,.5,8),M.dark);beaconPost.position.y=.25;beacon.add(beaconPost);
+// Pedras, arbustos e luzes de sinalização decoram o cenário sem bloquear a estrada.
+for(let i=0;i<34;i++){const x=((i*37)%390)/10-19.5,z=((i*61)%300)/10-15;let near=false;for(let j=0;j<=80;j+=2){const p=curve.getPoint(j/80);if(Math.hypot(p.x-x,p.z-z)<3.4){near=true;break}}if(!near){const bush=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+(i%3)*.09,0),mat(i%2?0x39784b:0x477f48));bush.position.set(x,.18,z);bush.scale.y=.7;bush.castShadow=true;scene.add(bush)}}
+function makeBase(pos,color){const g=new THREE.Group();g.position.set(pos.x,0,pos.z);scene.add(g);const pad=new THREE.Mesh(new THREE.CylinderGeometry(1.65,1.85,.5,10),M.dark);pad.position.y=.25;g.add(pad);const core=new THREE.Mesh(new THREE.OctahedronGeometry(.95),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.55,metalness:.55}));core.position.y=1.35;g.add(core);const halo=new THREE.Mesh(new THREE.TorusGeometry(1.12,.08,8,32),M.gold);halo.position.y=.85;halo.rotation.x=Math.PI/2;g.add(halo);return g}
+makeBase({x:17,z:7},0x23d9ee);makeBase({x:-18,z:-8},0xe65d49);
+// Silhuetas de robôs de defesa — modelos distintos, com peças animáveis.
+const towerDefs={
+ guard:{name:'Robô Guarda',cost:70,range:5.7,damage:11,rate:.62,color:0x24bcd2,kind:'rifle'},
+ gunner:{name:'Robô Metralhador',cost:115,range:5.3,damage:5,rate:.13,color:0x39a7d8,kind:'gun'},
+ sniper:{name:'Robô Sniper',cost:135,range:10,damage:37,rate:1.55,color:0xe4b84b,kind:'sniper'},
+ drone:{name:'Drone Caçador',cost:165,range:6.8,damage:13,rate:.42,color:0x72d8c8,kind:'air'},
+ tank:{name:'Tanque Robótico',cost:190,range:6.2,damage:32,rate:1.25,color:0x4d9c75,kind:'tank'},
+ rocket:{name:'Robô Fogueteiro',cost:210,range:7,damage:48,rate:1.8,color:0xd67c4e,kind:'rocket'},
+ mech:{name:'Mecha Colossal',cost:260,range:6.7,damage:27,rate:.72,color:0x8e78c9,kind:'mech'},
+ flak:{name:'Robô Antiaéreo',cost:180,range:8,damage:24,rate:.55,color:0xe18a54,kind:'flak'}
+};
+const towers=[],enemies=[],projectiles=[],effects=[];
+let selectedRangeVisual=null;
+let cash=320,lives=25,wave=0,selected='guard',selectedTower=null,started=false,over=false,spawnLeft=0,spawnClock=0,breakClock=0,lastUI=0;
+let difficulty='normal',autoSkip=false,waveClearHandled=false;
+const difficultySettings={
+ easy:{cash:480,lives:40,hp:.68,speed:.88,count:.85,info:'Mais sucata, 40 vidas e inimigos mais fracos.'},
+ normal:{cash:320,lives:25,hp:1,speed:1,count:1,info:'Experiência equilibrada: recursos e inimigos normais.'},
+ hard:{cash:260,lives:18,hp:1.45,speed:1.12,count:1.18,info:'Inimigos mais resistentes e rápidos, com menos recursos.'},
+ impossible:{cash:180,lives:10,hp:2.15,speed:1.3,count:1.38,info:'Poucos recursos, 10 vidas e hordas brutais.'}
+};
+const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0),ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+function meshBox(g,w,h,d,material,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o}
+function buildRobot(type){
+ const d=towerDefs[type],g=new THREE.Group(),armor=mat(d.color,.42,.48),blue=mat(type==='mech'?0xb84332:type==='tank'?0x64754c:0x557e91,.58,.28),joint=mat(0x263944,.55,.45);
+ const cube=(w,h,z,x,y,zz,m=armor)=>meshBox(g,w,h,z,m,x,y,zz);
+ const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.78,.25,8),M.dark);base.position.y=.13;g.add(base);
+ const foot=(x)=>{cube(.42,.2,.48,x,.34,0,joint);cube(.32,.15,.35,x,.22,.06,M.black)};
+ const humanoid=(style='guard')=>{
+   const palette={guard:0x278da0,gunner:0x3e566d,sniper:0x8a865b,rocket:0x9b493d,flak:0xb07b39};
+   const suit=mat(palette[style]||0x557e91,.46,.42);
+   const trim=style==='sniper'?M.gold:style==='rocket'?M.red:style==='gunner'?M.steel:M.glow;
+   const torsoW=style==='gunner'?1.02:style==='rocket'?.9:style==='sniper'?.66:.78;
+   const torsoH=style==='gunner'?1.02:style==='rocket'?1.0:style==='sniper'?1.12:.82;
+   cube(torsoW,torsoH,.52,0,1.28,0,suit);
+   cube(style==='sniper'?.46:.62,.25,.12,0,1.4,.31,trim);
+   cube(.22,.12,.08,0,1.42,.39,M.glow);
+   // Capacetes diferentes ajudam a reconhecer cada função de longe.
+   if(style==='sniper'){
+     cube(.46,.34,.42,0,1.96,0,suit);cube(.48,.09,.48,0,2.13,-.02,M.black);
+     cube(.4,.1,.08,0,1.96,.24,M.gold);cube(.3,.07,.06,0,1.96,.29,M.black); // visor óptico
+     cube(.08,.28,.08,-.27,1.92,-.04,M.gold); // antena lateral
+   }else if(style==='gunner'){
+     cube(.52,.48,.48,0,1.96,0,suit);cube(.62,.13,.52,0,2.2,0,M.steel);
+     cube(.42,.1,.08,0,1.98,.26,M.glow); // visor largo
+     cube(.14,.16,.12,0,2.25,-.2,M.gold);
+   }else if(style==='rocket'){
+     cube(.48,.42,.46,0,1.96,0,suit);cube(.58,.18,.5,0,2.17,0,M.red);
+     cube(.36,.12,.08,0,1.97,.26,M.gold);cube(.12,.22,.12,-.32,1.96,0,M.black);
+   }else{
+     cube(.48,.43,.42,0,1.92,0,suit);cube(.58,.16,.48,0,2.15,0,M.steel);
+     cube(.38,.1,.08,0,1.94,.25,M.glow);cube(.58,.07,.5,0,2.08,.03,M.gold); // capacete de guarda
+   }
+   // Ombros, braços e pernas; proporções específicas por classe.
+   const shoulder=style==='gunner'?.37:style==='rocket'?.34:style==='sniper'?.23:.28;
+   for(const x of [-1,1]){
+     cube(shoulder,.48,.34,x*(style==='gunner'?.63:.55),1.43,0,suit);
+     cube(.25,.36,.27,x*.55,1.05,.02,joint);cube(.23,.22,.25,x*.55,.84,.05,M.steel);
+     cube(.3,.62,.34,x*.29,.62,0,suit);cube(.34,.18,.42,x*.29,.25,.07,joint);foot(x*.29);
+   }
+   cube(.24,.3,.32,-.3,1.28,.27,trim);cube(.24,.3,.32,.3,1.28,.27,trim);
+   cube(.52,.58,.28,0,1.35,-.37,joint); // mochila
+   if(style==='guard'){
+     // Guarda: escudo grande no braço esquerdo e carabina compacta na mão direita.
+     cube(.48,.78,.16,-.78,1.12,.25,M.steel);cube(.32,.52,.07,-.78,1.12,.35,M.glow);
+     cube(.14,.14,.72,.53,1.12,.55,M.black);cube(.12,.12,.22,.53,1.12,.95,M.gold);
+     cube(.32,.28,.18,0,1.05,-.55,M.gold);
+   }else if(style==='gunner'){
+     // Metralhador: tronco largo, caixa de munição e cano rotativo duplo.
+     cube(.48,.42,.42,-.72,1.4,-.08,M.gold);cube(.28,.18,.3,-.72,1.4,.17,M.black);
+     cube(.2,.2,.92,.52,1.15,.68,M.black);cube(.2,.2,.92,.72,1.15,.68,M.black);
+     cube(.4,.32,.42,.38,1.38,-.28,M.steel);cube(.1,.1,.65,.38,1.38,-.58,M.gold);
+     cube(.18,.22,.2,0,1.05,-.56,M.red);
+   }else if(style==='sniper'){
+     // Sniper: rifle longo de precisão, luneta destacada, bipé e capa traseira.
+     cube(.18,.16,1.95,.43,1.2,.75,M.black);cube(.24,.2,.36,.43,1.34,.55,M.steel);
+     cube(.14,.14,.38,.43,1.37,.33,M.gold);cube(.12,.12,.42,.43,1.2,1.7,M.steel);
+     cube(.08,.34,.08,.38,.96,1.35,M.black);cube(.08,.34,.08,.58,.96,1.35,M.black);
+     cube(.48,.66,.12,-.36,1.42,-.48,M.human);cube(.1,.32,.1,-.36,2.25,-.34,M.gold);
+   }else if(style==='rocket'){
+     // Fogueteiro: lançador tubular enorme sobre o ombro e mochila com foguetes.
+     cube(.58,.62,1.42,-.68,1.72,.05,M.steel);cube(.48,.5,.25,-.68,1.72,.78,M.red);
+     cube(.16,.16,.24,-.68,1.72,1.5,M.gold);cube(.22,.18,.35,-.68,2.08,-.08,M.black);
+     cube(.48,.72,.36,.42,1.45,-.42,M.red);cube(.18,.52,.2,.42,1.45,-.68,M.gold);
+     cube(.16,.16,.5,.55,1.1,.42,M.black);
+   }else if(style==='flak'){
+     cube(.16,.16,1.05,-.4,1.3,.55,M.gold);cube(.16,.16,1.05,.4,1.3,.55,M.gold);
+   }
+ };;
+ if(type==='tank'){
+   // Tanque verde voxel inspirado no modelo de esteiras da referência.
+   cube(1.55,.5,2.0,0,.62,0,blue);cube(1.0,.42,1.05,0,1.02,-.05,M.steel);cube(.72,.34,.72,0,1.37,-.1,armor);
+   const barrel=cube(.16,.16,1.25,0,1.38,.72,M.black);g.userData.barrel=barrel;g.userData.aim=g;
+   for(const x of [-.88,.88]){cube(.3,.48,2.0,x,.42,0,joint);for(let i=0;i<5;i++){const w=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.13,10),M.gold);w.rotation.z=Math.PI/2;w.position.set(x*1.08,.4,-.75+i*.37);g.add(w)}}
+   cube(.25,.34,.25,0,1.75,-.22,blue);cube(.3,.1,.3,0,1.95,-.22,M.gold);
+ }else if(type==='drone'){
+   cube(.7,.38,.7,0,1.48,0,blue);const dome=new THREE.Mesh(new THREE.BoxGeometry(.38,.28,.38),M.glow);dome.position.y=1.8;g.add(dome);
+   for(const [x,z] of [[-.78,-.72],[.78,-.72],[-.78,.72],[.78,.72]]){cube(.13,.12,.75,x,1.5,z,joint);const arm=new THREE.Mesh(new THREE.BoxGeometry(.58,.05,.1),M.steel);arm.position.set(x,1.72,z);g.add(arm);const rotor=new THREE.Mesh(new THREE.BoxGeometry(.72,.045,.09),M.black);rotor.position.set(x,1.78,z);g.add(rotor)}g.userData.flying=true;
+ }else if(type==='mech'){
+   // Mecha vermelho de assalto com pernas robustas e canhões laterais.
+   humanoid('rocket');cube(1.15,.42,.72,0,1.85,0,M.red);cube(.8,.22,.18,0,2.12,.34,M.gold);
+   for(const x of [-.85,.85]){cube(.38,.7,.48,x,1.28,0,M.red);cube(.42,.34,.5,x,.86,.05,M.steel);cube(.42,.3,.62,x,.45,.08,M.black)}
+   cube(.25,.22,1.0,.85,1.5,.52,M.black);cube(.25,.22,1.0,-.85,1.5,.52,M.black);
+   g.userData.barrel=cube(.2,.2,1.05,.85,1.5,.65,M.black);
+ }else{
+   const style=type==='sniper'?'sniper':type==='gunner'?'gunner':type==='rocket'?'rocket':type==='flak'?'flak':'guard';
+   humanoid(style);
+ }
+ // A base permanece fixa; corpo, cabeça e armas ficam em um pivô que acompanha o alvo.
+ const pivot=new THREE.Group();
+ const fixedBase=base;
+ for(const child of [...g.children]){
+   if(child!==fixedBase){g.remove(child);pivot.add(child)}
+ }
+ g.add(pivot);
+ g.userData.aimPivot=pivot;
+ g.position.y=0;g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
+}
+function groundPoint(ev){const r=renderer.domElement.getBoundingClientRect();mouse.x=(ev.clientX-r.left)/r.width*2-1;mouse.y=-(ev.clientY-r.top)/r.height*2+1;ray.setFromCamera(mouse,camera);const p=new THREE.Vector3();ray.ray.intersectPlane(plane,p);return p}
+function nearRoad(x,z){for(let i=0;i<=150;i++){const p=curve.getPoint(i/150);if(Math.hypot(p.x-x,p.z-z)<2.75)return true}return false}
+function showTowerRange(t){
+ if(selectedRangeVisual){scene.remove(selectedRangeVisual);selectedRangeVisual.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()});selectedRangeVisual=null}
+ if(!t)return;
+ const group=new THREE.Group();group.position.set(t.x,.035,t.z);
+ const fill=new THREE.Mesh(new THREE.CircleGeometry(t.range,64),new THREE.MeshBasicMaterial({color:0x38dce8,transparent:true,opacity:.105,depthWrite:false,side:THREE.DoubleSide}));fill.rotation.x=-Math.PI/2;group.add(fill);
+ const edge=new THREE.Mesh(new THREE.TorusGeometry(t.range,.045,8,96),new THREE.MeshBasicMaterial({color:0x6af6ff,transparent:true,opacity:.95}));edge.rotation.x=Math.PI/2;edge.position.y=.025;group.add(edge);
+ scene.add(group);selectedRangeVisual=group;
+}
+function addTower(type,x,z){const d=towerDefs[type];if(towers.length>=15){toast('Limite atingido: você só pode colocar 15 robôs! Venda um para liberar espaço.');return}if(cash<d.cost){toast('Sucata insuficiente!');return}if(nearRoad(x,z)){toast('Construa fora da estrada!');return}if(towers.some(t=>Math.hypot(t.x-x,t.z-z)<1.45)){toast('Espaço muito apertado!');return}cash-=d.cost;const mesh=buildRobot(type);mesh.position.set(x,0,z);scene.add(mesh);const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.045,8,24),M.gold);ring.rotation.x=Math.PI/2;ring.position.y=.17;mesh.add(ring);const t={type,x,z,mesh,ring,level:1,priority:'first',cool:0,damage:Math.max(1,Math.round(d.damage*.96)),range:d.range,rate:d.rate,phase:Math.random()*6};towers.push(t);chooseTower(t);updateUI()}
+function chooseTower(t){selectedTower=t;towers.forEach(q=>q.ring.visible=q===t);showTowerRange(t);const cost=Math.round(towerDefs[t.type].cost*.72*t.level);$('selection').innerHTML=`<strong>${towerDefs[t.type].name} — Nv. ${t.level}/4</strong><br>Dano ${t.damage} · Alcance ${t.range.toFixed(1)}<br>Área de tiro: círculo azul no mapa<br><label style="display:block;margin:7px 0 3px;color:#8eeaf0">Prioridade de alvo</label><select id="priority" style="width:100%;padding:7px;border-radius:8px;background:#193b55;color:white;border:1px solid #456c83"><option value="first" ${t.priority==='first'?'selected':''}>Primeiro da fila</option><option value="last" ${t.priority==='last'?'selected':''}>Último da fila</option><option value="strongest" ${t.priority==='strongest'?'selected':''}>Mais forte</option><option value="weakest" ${t.priority==='weakest'?'selected':''}>Mais fraco</option></select><br>${t.level<4?`<button class="gold" id="upgrade">⬆ Melhorar ${cost} 🪙</button>`:'<b style="color:#6af6ff">★ NÍVEL MÁXIMO</b>'} <button id="sell">Vender</button>`;const up=$('upgrade');if(up)up.onclick=()=>upgrade(t);$('priority').onchange=ev=>{t.priority=ev.target.value;toast('Prioridade: '+ev.target.options[ev.target.selectedIndex].text)};$('sell').onclick=()=>sell(t)}
+function addUpgradeLook(t){
+ const pivot=t.mesh.userData.aimPivot;if(!pivot)return;
+ const level=t.level,accent=[0x55e8ef,0xffd16c,0xa78bfa,0x72e6a2,0xff8a65,0x7dd3fc,0xf472b6,0xffffff][level-1];
+ const glow=mat(accent,.28,.55),dark=mat(0x263944,.48,.5);
+ const box=(w,h,d,x,y,z,m=glow)=>meshBox(pivot,w,h,d,m,x,y,z);
+ if(level===2){box(.2,.32,.2,-.72,1.72,0);box(.2,.32,.2,.72,1.72,0)}
+ if(level===3){box(.16,.48,.16,0,2.45,-.22);box(.48,.1,.14,0,2.63,-.22)}
+ if(level===4){box(.22,.55,.3,-.58,1.35,-.42,dark);box(.22,.55,.3,.58,1.35,-.42,dark)}
+ if(level===5){box(.18,.18,.5,-.38,1.45,.36);box(.18,.18,.5,.38,1.45,.36)}
+ if(level===6){box(.3,.22,.3,-.78,1.92,-.12,glow);box(.3,.22,.3,.78,1.92,-.12,glow)}
+ if(level===7){box(.14,.72,.14,-.88,1.55,-.08,dark);box(.14,.72,.14,.88,1.55,-.08,dark);box(.22,.18,.28,0,2.2,-.4,glow)}
+ if(level===4){const crown=new THREE.Mesh(new THREE.TorusGeometry(.42,.055,8,24),glow);crown.position.set(0,2.72,0);pivot.add(crown);box(.48,.12,.18,0,2.78,0,glow)}
+}
+function upgrade(t){if(t.level>=4){toast('Este robô já está no nível máximo!');return}const cost=Math.round(towerDefs[t.type].cost*.72*t.level);if(cash<cost){toast('Sucata insuficiente!');return}cash-=cost;t.level++;t.damage=Math.round(t.damage*1.46);t.range+=.45;t.rate=Math.max(.085,t.rate*.91);addUpgradeLook(t);chooseTower(t);updateUI();toast('Robô evoluiu para o nível '+t.level+'! Novo módulo instalado.')}
+function sell(t){cash+=Math.round(towerDefs[t.type].cost*.5*t.level);scene.remove(t.mesh);towers.splice(towers.indexOf(t),1);selectedTower=null;showTowerRange(null);$('selection').innerHTML='<strong>Central de comando</strong><br>Escolha um robô na fábrica.';updateUI()}
+function humanModel(kind){
+ const g=new THREE.Group(),isBoss=kind.startsWith('boss');
+ const armor=mat(isBoss?0x673b77:kind==='heavy'?0x59636e:kind==='gunner'?0x806b42:kind==='medic'?0x4d806c:0x657b4b,.55,.25);
+ const skin=M.skin||mat(0xd6a27c);
+ const head=(x=0,y=1.35,z=0)=>{const h=meshBox(g,.43,.43,.4,skin,x,y,z);const face=meshBox(g,.24,.075,.035,M.black,x,y-.055,z+.213);return h};
+ const helmet=(x=0,y=1.48,z=0,color=0xc94b43)=>{meshBox(g,.48,.18,.45,mat(color,.88),x,y,z);meshBox(g,.54,.07,.48,mat(color,.88),x,y-.045,z+.025);meshBox(g,.18,.07,.1,M.black,x,y-.025,z+.23)};
+ const body=(x=0,y=.8,z=0)=>{
+   meshBox(g,.56,.62,.36,armor,x,y,z); // colete quadrado
+   meshBox(g,.18,.16,.38,M.gold,x-.17,y+.12,z+.02); // bolsos
+   meshBox(g,.18,.16,.38,M.gold,x+.17,y+.12,z+.02);
+   meshBox(g,.22,.48,.24,armor,x-.43,y-.02,z);meshBox(g,.22,.48,.24,armor,x+.43,y-.02,z);
+   meshBox(g,.2,.2,.25,M.steel,x-.43,y-.27,z+.02);meshBox(g,.2,.2,.25,M.steel,x+.43,y-.27,z+.02);
+   meshBox(g,.24,.52,.27,armor,x-.17,y-.55,z);meshBox(g,.24,.52,.27,armor,x+.17,y-.55,z);
+   meshBox(g,.27,.17,.34,M.black,x-.17,y-.88,z+.04);meshBox(g,.27,.17,.34,M.black,x+.17,y-.88,z+.04);
+   meshBox(g,.12,.32,.12,M.skin,x,y+.43,z);
+ };
+ if(kind==='tank'){
+   meshBox(g,1.7,.62,2.2,M.human,0,.65,0);meshBox(g,1,.4,1,M.steel,0,1.12,.05);meshBox(g,.18,.18,1.25,M.black,0,1.2,.8);
+   for(const side of [-1,1]){meshBox(g,.28,.42,2.15,M.black,side*.94,.38,0);for(let k=0;k<5;k++){const w=new THREE.Mesh(new THREE.CylinderGeometry(.19,.19,.12,12),M.steel);w.rotation.z=Math.PI/2;w.position.set(side*1.1,.38,-.8+k*.4);g.add(w)}}
+   meshBox(g,.34,.42,.3,armor,0,1.48,-.12);head(0,1.78,-.1);helmet(0,1.9,-.1,0xd2a43e);g.userData.vehicle=true;
+ }else if(kind==='apc'){
+   meshBox(g,1.45,.9,2.5,M.steel,0,.72,0);meshBox(g,1.05,.38,.9,armor,0,1.28,-.1);
+   for(const side of [-1,1])for(let k=0;k<4;k++){const w=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.15,12),M.black);w.rotation.z=Math.PI/2;w.position.set(side*.78,.43,-.9+k*.58);g.add(w)}
+   meshBox(g,.3,.36,.28,armor,0,1.58,.35);head(0,1.88,.35);helmet(0,1.98,.35,0x4c6650);g.userData.vehicle=true;
+ }else if(kind==='heli'){
+   // Helicóptero militar detalhado: fuselagem, cockpit envidraçado, cauda e dois rotores.
+   const heliArmor=mat(0x343d3b,.62,.38),heliEdge=mat(0x171f22,.48,.52),heliMetal=mat(0x66716c,.42,.62);
+   const glassMat=new THREE.MeshStandardMaterial({color:0x5dc5d4,metalness:.48,roughness:.16,transparent:true,opacity:.68,depthWrite:false});
+   // Corpo principal e nariz facetado voltado para a direção de voo (+Z).
+   const fuselage=new THREE.Mesh(new THREE.SphereGeometry(.72,10,8),heliArmor);fuselage.scale.set(.78,.72,1.55);fuselage.position.set(0,.12,-.12);g.add(fuselage);
+   meshBox(g,.78,.46,.82,heliArmor,0,.02,.82);
+   const cockpit=new THREE.Mesh(new THREE.SphereGeometry(.56,12,10),glassMat);cockpit.scale.set(1.05,.78,1.05);cockpit.position.set(0,.34,.79);g.add(cockpit);
+   meshBox(g,.055,.62,.08,heliEdge,0,.35,1.13);
+   for(const side of [-1,1]){
+     const win=new THREE.Mesh(new THREE.BoxGeometry(.035,.38,.55),glassMat);win.position.set(side*.565,.32,-.03);g.add(win);
+     meshBox(g,.12,.16,.48,heliMetal,side*.69,-.03,-.45);
+     meshBox(g,.09,.48,.1,heliEdge,side*.48,-.48,.45);meshBox(g,.09,.48,.1,heliEdge,side*.48,-.48,-.72);
+     meshBox(g,.12,.12,2.55,heliEdge,side*.72,-.72,-.08);
+     const skidTip=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.34,8),heliEdge);skidTip.rotation.x=Math.PI/2;skidTip.rotation.z=-.35;skidTip.position.set(side*.72,-.65,1.18);g.add(skidTip);
+     // Metralhadora lateral e caixa de munição.
+     meshBox(g,.22,.2,.42,heliMetal,side*.78,-.02,.18);meshBox(g,.13,.13,.92,heliEdge,side*.86,-.02,.62);meshBox(g,.19,.16,.28,M.black,side*.77,-.19,-.02);
+   }
+   // Piloto visível por trás do vidro da cabine.
+   meshBox(g,.34,.38,.3,mat(0x354c42),0,.12,.53);
+   const pilotHead=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),M.skin);pilotHead.position.set(0,.48,.66);g.add(pilotHead);
+   const pilotHelmet=new THREE.Mesh(new THREE.SphereGeometry(.205,10,8,0,Math.PI*2,0,Math.PI/2),mat(0x303a34));pilotHelmet.position.set(0,.53,.66);g.add(pilotHelmet);
+   meshBox(g,.28,.055,.04,M.black,0,.45,.83);
+   // Cauda afilada e estabilizador horizontal.
+   meshBox(g,.2,.2,2.35,heliArmor,0,.27,-1.72);meshBox(g,.16,.72,.32,heliArmor,0,.56,-2.78);meshBox(g,1.35,.1,.38,heliMetal,0,.25,-2.35);
+   // Mastro e rotor principal com quatro pás independentes.
+   meshBox(g,.16,.62,.16,heliMetal,0,.82,-.22);
+   const mainRotor=new THREE.Group();mainRotor.position.set(0,1.16,-.22);g.add(mainRotor);
+   meshBox(mainRotor,4.5,.065,.16,heliEdge,0,0,0);meshBox(mainRotor,.16,.065,4.5,heliEdge,0,0,0);
+   const hub=new THREE.Mesh(new THREE.CylinderGeometry(.18,.2,.18,10),M.gold);hub.position.y=.07;mainRotor.add(hub);
+   // Rotor de cauda em plano vertical.
+   const tailRotor=new THREE.Group();tailRotor.position.set(.17,.57,-2.82);g.add(tailRotor);
+   meshBox(tailRotor,.07,1.05,.12,heliEdge,0,0,0);meshBox(tailRotor,.07,.12,1.05,heliEdge,0,0,0);
+   const tailHub=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.16,10),M.gold);tailHub.rotation.z=Math.PI/2;tailRotor.add(tailHub);
+   for(const side of [-1,1]){const lamp=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),mat(side<0?0xff4545:0x42e8a1));lamp.position.set(side*.76,.12,-2.35);g.add(lamp)}
+   g.userData.mainRotor=mainRotor;g.userData.tailRotor=tailRotor;g.userData.flying=true;
+}else if(kind==='jet'||kind==='boss_ace'){
+   const boss=kind==='boss_ace',factor=boss?1.45:1;
+   meshBox(g,.48*factor,.42*factor,(boss?4.2:3.35)*factor,M.steel,0,2.05*factor,0);
+   const nose=new THREE.Mesh(new THREE.ConeGeometry((boss?.36:.25)*factor,(boss?1.2:.85)*factor,10),boss?M.gold:M.dark);
+   nose.rotation.x=Math.PI/2;nose.position.set(0,2.05*factor,(boss?2.65:2.05)*factor);g.add(nose);
+   meshBox(g,(boss?5.2:3.5)*factor,.14*factor,(boss?1.05:.82)*factor,boss?M.red:armor,0,2*factor,.05);
+   meshBox(g,1.2*factor,.1*factor,.7*factor,M.gold,0,2*factor,-1.4*factor);
+   meshBox(g,.12*factor,.62*factor,.58*factor,M.red,0,2.3*factor,-1.4*factor);
+   const canopy=new THREE.Mesh(new THREE.SphereGeometry(boss?.43:.27,12,10),M.glow);canopy.scale.set(.85,.58,1.35);canopy.position.set(0,2.38*factor,.55*factor);g.add(canopy);
+   head(0,2.34*factor,.52*factor);g.userData.flying=true;g.userData.plane=true;
+ }else if(kind==='jetpack'){
+   body(0,.95,0);head(0,1.48,0);helmet(0,1.58,0,0x3f6f9d);meshBox(g,.48,.72,.3,M.red,0,1,-.34);
+   for(const x of [-.2,.2]){meshBox(g,.12,.42,.12,M.gold,x,.42,-.48);const flame=new THREE.Mesh(new THREE.ConeGeometry(.09,.32,8),mat(0x52dcff));flame.position.set(x,.1,-.48);g.add(flame)}
+   meshBox(g,.14,.14,.9,M.black,.38,1.12,.3);g.userData.flying=true;
+ }else if(kind==='boss_tank'){
+   meshBox(g,2.35,.82,3,M.steel,0,.8,0);meshBox(g,1.4,.58,1.5,M.gold,0,1.42,.05);meshBox(g,.22,.22,1.9,M.black,0,1.48,1.1);
+   for(const side of [-1,1]){meshBox(g,.38,.55,2.8,M.black,side*1.25,.45,0);for(let k=0;k<6;k++){const w=new THREE.Mesh(new THREE.CylinderGeometry(.23,.23,.14,12),M.gold);w.rotation.z=Math.PI/2;w.position.set(side*1.35,.45,-1.1+k*.44);g.add(w)}}
+   meshBox(g,.38,.45,.32,armor,0,1.92,-.2);head(0,2.2,-.2);helmet(0,2.32,-.2,0xe2b64c);g.userData.vehicle=true;
+ }else if(kind==='boss'){
+   // COMANDANTE TITÃ: chefe humano de elite, com silhueta alta e armadura pesada.
+   const titan=mat(0x35465d,.38,.62),edge=mat(0xd6a743,.32,.7),visor=mat(0xff493e,.2,.3),cape=mat(0x401f32,.72,.18);
+   // Pernas blindadas e botas largas.
+   meshBox(g,.48,.72,.52,titan,-.42,.48,0);meshBox(g,.48,.72,.52,titan,.42,.48,0);
+   meshBox(g,.58,.22,.72,M.black,-.42,.16,.12);meshBox(g,.58,.22,.72,M.black,.42,.16,.12);
+   meshBox(g,.22,.5,.18,edge,-.42,.52,.3);meshBox(g,.22,.5,.18,edge,.42,.52,.3);
+   // Tronco em camadas, peitoral e núcleo luminoso.
+   meshBox(g,1.28,1.12,.62,titan,0,1.38,0);meshBox(g,1.02,.62,.16,edge,0,1.55,.34);
+   meshBox(g,.38,.42,.12,visor,0,1.58,.44);meshBox(g,.82,.16,.12,M.black,0,1.13,.38);
+   // Ombreiras enormes e placas laterais.
+   meshBox(g,.62,.62,.72,titan,-.91,1.82,0);meshBox(g,.62,.62,.72,titan,.91,1.82,0);
+   meshBox(g,.68,.14,.78,edge,-.91,2.12,0);meshBox(g,.68,.14,.78,edge,.91,2.12,0);
+   // Cabeça com capacete de comandante e crista dourada.
+   meshBox(g,.62,.62,.58,titan,0,2.35,0);meshBox(g,.72,.16,.64,M.black,0,2.55,.02);
+   meshBox(g,.48,.13,.1,visor,0,2.34,.31);meshBox(g,.14,.38,.16,edge,0,2.82,-.02);
+   // Braços pesados e manoplas.
+   for(const x of [-1,1]){meshBox(g,.34,.72,.42,titan,x*1.0,1.25,.02);meshBox(g,.42,.38,.48,edge,x*1.0,.82,.12);}
+   // Canhão de pulso no antebraço direito e manto nas costas.
+   meshBox(g,.36,.38,.82,M.black,.99,.92,.48);meshBox(g,.22,.22,.16,visor,.99,.92,.92);
+   meshBox(g,1.05,1.35,.16,cape,0,1.55,-.43);meshBox(g,.9,.12,.2,edge,0,2.12,-.54);
+ }else if(kind==='boss_mech'){
+   // Colosso de Assalto: gigante blindado com dois canhões nos braços.
+   meshBox(g,1.8,1.25,.8,M.steel,0,1.55,0);meshBox(g,1.25,.75,.72,M.gold,0,2.5,0);
+   meshBox(g,.68,.18,.12,M.red,0,2.52,.4);meshBox(g,2.45,.42,.82,armor,0,2.05,0);
+   for(const x of [-1.25,1.25]){meshBox(g,.62,.72,.65,M.steel,x,1.95,0);meshBox(g,.5,.4,1.05,M.black,x,1.52,.35);meshBox(g,.58,.9,.58,armor,x*.58,.48,0);meshBox(g,.72,.22,.78,M.gold,x*.58,.13,.1)}
+   meshBox(g,.3,.3,1.5,M.red,-1.35,1.55,.65);meshBox(g,.3,.3,1.5,M.red,1.35,1.55,.65);
+ }else if(kind==='boss_gunner'){
+   // Senhor da Artilharia: comandante pesado com metralhadora múltipla.
+   meshBox(g,1.35,1.45,.72,armor,0,1.4,0);meshBox(g,.82,.68,.62,M.steel,0,2.38,0);
+   meshBox(g,.62,.16,.12,M.red,0,2.4,.34);meshBox(g,1.8,.48,.75,M.gold,0,1.78,0);
+   meshBox(g,.62,.5,.6,M.black,-.9,1.5,-.05);meshBox(g,.28,.3,.42,M.gold,-.9,1.5,.34);
+   for(let i=0;i<4;i++)meshBox(g,.12,.12,1.65,M.black,.95+(i%2)*.12,1.35+(i%2)*.1,.5);
+   meshBox(g,.55,.5,.45,M.red,0,.82,-.42);
+ }else if(kind==='sniper'){
+   body();head();helmet(0,1.48,0,0x5b7551);meshBox(g,.12,.12,1.8,M.black,.43,1.08,.52);meshBox(g,.22,.18,.42,M.gold,-.38,1.02,-.08);
+ }else if(kind==='rocket'){
+   body();head();helmet(0,1.48,0,0x9c5140);meshBox(g,.42,.5,.55,M.steel,-.48,1.18,-.08);meshBox(g,.2,.2,1.35,M.red,-.48,1.2,.52);meshBox(g,.16,.12,.22,M.gold,-.48,1.2,1.25);
+ }else if(kind==='medic'){
+   body();head();helmet(0,1.48,0,0x4d9b77);meshBox(g,.36,.42,.28,M.steel,-.38,1,-.05);
+   meshBox(g,.1,.34,.08,M.glow,-.38,1,.12);meshBox(g,.3,.1,.08,M.glow,-.38,1,.12);meshBox(g,.12,.12,.62,M.black,.38,.98,.32);
+ }else{
+   body();head();helmet(0,1.48,0,kind==='heavy'?0x525b68:kind==='gunner'?0x8b7138:0xc94b43);
+   if(kind==='gunner'){meshBox(g,.14,.14,.9,M.black,.42,.98,.38);meshBox(g,.32,.2,.38,M.steel,-.38,.85,-.1)}
+   else if(kind==='heavy'){meshBox(g,.78,.34,.45,M.steel,0,1.08,0);meshBox(g,.18,.18,.9,M.black,.48,1,.35)}
+   else meshBox(g,.13,.13,.65,M.black,.35,.95,.3);
+ }
+ g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.visible=true;if(o.material){o.material.transparent=false;o.material.opacity=1}}});
+ return g;
+}
+function spawnEnemy(){
+ let kind='grunt';const slot=spawnLeft;
+ const bossRoster=['boss','boss_tank','boss_ace','boss_mech','boss_gunner'];
+ if(wave%5===0&&slot===1)kind=bossRoster[(Math.floor(wave/5)-1)%bossRoster.length];
+ else{
+   // Com o avanço das ondas, tropas básicas ficam raras e as unidades pesadas dominam.
+   const roll=Math.random();
+   if(wave<3)kind=roll<.52?'grunt':roll<.76?'runner':roll<.9?'gunner':'heavy';
+   else if(wave<6)kind=roll<.20?'grunt':roll<.32?'runner':roll<.48?'gunner':roll<.63?'heavy':roll<.76?'sniper':roll<.88?'rocket':'medic';
+   else if(wave<10)kind=roll<.08?'grunt':roll<.16?'runner':roll<.28?'gunner':roll<.43?'heavy':roll<.55?'sniper':roll<.68?'rocket':roll<.77?'medic':roll<.86?'tank':roll<.94?'heli':'jetpack';
+   else if(wave<20)kind=roll<.04?'grunt':roll<.09?'runner':roll<.19?'gunner':roll<.33?'heavy':roll<.43?'sniper':roll<.56?'rocket':roll<.64?'medic':roll<.77?'tank':roll<.86?'apc':roll<.94?'heli':'jet';
+   else kind=roll<.02?'grunt':roll<.05?'runner':roll<.13?'gunner':roll<.27?'heavy':roll<.37?'sniper':roll<.51?'rocket':roll<.59?'medic':roll<.73?'tank':roll<.84?'apc':roll<.93?'heli':'jet';
+ }
+
+ const isBoss=kind.startsWith('boss'),airborne=['heli','jet','jetpack','boss_ace'].includes(kind);
+ const mesh=humanModel(kind),p=curve.getPointAt(.075);
+ const altitude=kind==='heli'?2.15:(kind==='jet'||kind==='boss_ace'?3.0:(kind==='jetpack'?1.75:.16));
+ mesh.position.set(p.x,altitude,p.z);mesh.scale.multiplyScalar(isBoss?(kind==='boss_ace'?1.35:1.18):(kind==='jet'?1.08:1.12));
+ const hp=isBoss?(kind==='boss_ace'?1700+wave*230:kind==='boss_tank'?2100+wave*280:kind==='boss_mech'?2600+wave*310:kind==='boss_gunner'?2300+wave*290:1000+wave*190):
+   kind==='tank'?380+wave*55:kind==='apc'?300+wave*42:kind==='heli'?135+wave*22:
+   kind==='jet'?165+wave*24:kind==='jetpack'?90+wave*15:kind==='heavy'?175+wave*25:
+   kind==='rocket'?125+wave*18:kind==='sniper'?75+wave*13:kind==='medic'?105+wave*16:
+   kind==='gunner'?95+wave*16:kind==='runner'?28+wave*8:45+wave*12;
+ const speed=(isBoss?(kind==='boss_ace'?2.0:kind==='boss_mech'?0.62:kind==='boss_gunner'?0.82:kind==='boss_tank'?.72:.72):
+   kind==='tank'?.9:kind==='apc'?1.0:kind==='heli'?1.8:kind==='jet'?3.0:
+   kind==='jetpack'?2.35:kind==='heavy'?.95:kind==='rocket'?1.05:kind==='sniper'?1.15:
+   kind==='medic'?1.25:kind==='runner'?2.7:kind==='gunner'?1.3:1.5)*difficultySettings[difficulty].speed;
+ const reward=isBoss?(kind==='boss_ace'?500:kind==='boss_tank'?560:kind==='boss_mech'?650:kind==='boss_gunner'?600:300):
+   kind==='tank'?85:kind==='apc'?72:kind==='heli'?58:kind==='jet'?75:kind==='jetpack'?42:
+   kind==='heavy'?42:kind==='rocket'?38:kind==='sniper'?32:kind==='medic'?36:
+   kind==='gunner'?28:kind==='runner'?18:14;
+ const healthTier=Math.floor((wave-1)/5);
+ const waveHealthMultiplier=Math.pow(1.25,healthTier);
+ const scaledHp=Math.round(hp*difficultySettings[difficulty].hp*waveHealthMultiplier);
+ const bar=new THREE.Group();bar.position.y=isBoss?5.0:(airborne?4.0:(kind==='tank'||kind==='apc'?2.6:2.1));
+ const w=isBoss?2.3:1.05;bar.add(new THREE.Mesh(new THREE.PlaneGeometry(w,.13),mat(0x38252a)));
+ const fill=new THREE.Mesh(new THREE.PlaneGeometry(w-.03,.09),mat(isBoss?0xffb94d:0x5ce28d));fill.position.z=.015;bar.add(fill);mesh.add(bar);
+ const e={kind,mesh,hp:scaledHp,max:scaledHp,speed,reward,dist:curve.getLength()*.075,dead:false,bar,fill,phase:Math.random()*8,isBoss,airborne,healClock:1.2};
+ scene.add(mesh);enemies.push(e);
+ if(isBoss)toast(({boss:'☠️ SUPER CHEFÃO: COMANDANTE TITÃ!',boss_tank:'🛡️ SUPER CHEFÃO: SUPER TANQUE!',boss_ace:'✈️ SUPER CHEFÃO: ÁGUIA DE AÇO!',boss_mech:'🦾 SUPER CHEFÃO: COLOSSO DE ASSALTO!',boss_gunner:'🔫 SUPER CHEFÃO: SENHOR DA ARTILHARIA!'})[kind]);
+ else if(kind==='jet')toast('✈️ CAÇA HUMANO DETECTADO!');
+ else if(kind==='medic')toast('➕ MÉDICO HUMANO: cura tropas próximas!');
+}
+function kill(e){if(e.dead)return;e.dead=true;cash+=e.reward;scene.remove(e.mesh)}
+function shoot(t,e){if(t.mesh.userData.aimPivot){const a=Math.atan2(e.mesh.position.x-t.x,e.mesh.position.z-t.z);t.mesh.userData.aimPivot.rotation.y=a}const start=new THREE.Vector3(t.x,.95,t.z),target=e.mesh.position.clone().add(new THREE.Vector3(0,e.airborne?(e.kind==='jet'||e.kind==='boss_ace'?2.5:e.kind==='jetpack'?1.7:2.3):1,0));const color=t.type==='sniper'?0xffd16c:t.type==='rocket'||t.type==='tank'?0xff835b:0x63efff;const bullet=new THREE.Mesh(new THREE.SphereGeometry(t.type==='rocket'?.17:.095,10,8),new THREE.MeshBasicMaterial({color}));bullet.position.copy(start);scene.add(bullet);projectiles.push({mesh:bullet,target:e,damage:t.damage,speed:t.type==='sniper'?22:t.type==='rocket'?12:16,aoe:t.type==='rocket'||t.type==='tank'?2.0:0});t.cool=t.rate}
+function toast(s){const el=$('toast');el.textContent=s;el.style.opacity=1;clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.style.opacity=0,1700)}
+function updateUI(){ $('towerCount').textContent=towers.length+'/15';$('lives').textContent=lives;$('cash').textContent=cash;$('wave').textContent=wave;$('enemies').textContent=enemies.filter(e=>!e.dead).length+spawnLeft;const boss=enemies.find(e=>!e.dead&&e.isBoss);$('boss').textContent=boss?Math.ceil(boss.hp)+' HP':'—';$('bosslabel').textContent=boss?(({boss:'COMANDANTE TITÃ',boss_tank:'SUPER TANQUE',boss_ace:'ÁGUIA DE AÇO',boss_mech:'COLOSSO DE ASSALTO',boss_gunner:'SENHOR DA ARTILHARIA'})[boss.kind]||'SUPER CHEFÃO'):'CHEFÃO';$('bossbar').style.display=boss?'block':'none';if(boss)$('bossfill').style.width=Math.max(0,boss.hp/boss.max*100)+'%';$('start').textContent=spawnLeft?'🌊 ONDA EM ANDAMENTO':(breakClock>0?'⏳ PRÓXIMA ONDA...':'▶ INICIAR ONDA '+(wave+1));$('start').disabled=!!spawnLeft||breakClock>0||over}
+function startWave(){if(spawnLeft||breakClock>0||over)return;waveClearHandled=false;breakClock=0;wave++;spawnLeft=Math.max(5,Math.round((8+wave*2+(wave%5===0?1:0))*difficultySettings[difficulty].count));spawnClock=0;
+ const healthTier=Math.floor((wave-1)/5);
+ toast(wave%5===0?'⚠️ PREPARE-SE PARA O CHEFÃO!':(wave%5===1&&wave>1?'🧬 Humanos evoluíram! Vida aumentada em 25% por estágio.':'Onda '+wave+' — tropas humanas detectadas!'));spawnEnemy();spawnLeft--;spawnClock=1.1;updateUI()}
+$('start').onclick=startWave;
+for(const type of Object.keys(towerDefs)){$('buy-'+type).onclick=()=>{selected=type;selectedTower=null;showTowerRange(null);towers.forEach(t=>t.ring.visible=false);document.querySelectorAll('.shop button').forEach(b=>b.classList.remove('active'));$('buy-'+type).classList.add('active');$('selection').innerHTML=`<strong>${towerDefs[type].name}</strong><br>Preço: ${towerDefs[type].cost} sucata<br>Toque no gramado para construir.`}}
+renderer.domElement.addEventListener('pointerdown',ev=>{if(!started||over)return;const p=groundPoint(ev);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(towers.map(t=>t.mesh),true)[0];if(hit){let o=hit.object;while(o.parent&&o.parent!==scene)o=o.parent;const t=towers.find(q=>q.mesh===o);if(t){chooseTower(t);return}}if(p&&Math.abs(p.x)<20&&Math.abs(p.z)<16){if(selectedTower){selectedTower.ring.visible=false;selectedTower=null}addTower(selected,p.x,p.z)}});
+document.querySelectorAll('[data-difficulty]').forEach(btn=>btn.onclick=()=>{
+ difficulty=btn.dataset.difficulty;
+ document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('active',b===btn));
+ $('difficultyInfo').textContent=difficultySettings[difficulty].info;
+});
+$('autoSkip').onclick=()=>{
+ autoSkip=!autoSkip;
+ $('autoSkip').classList.toggle('on',autoSkip);
+ $('autoSkip').textContent=autoSkip?'⏩ AUTO PULAR: ON':'⏩ AUTO PULAR: OFF';
+ $('autoSkip').setAttribute('aria-pressed',String(autoSkip));
+ toast(autoSkip?'Próximas ondas iniciarão automaticamente!':'Início automático desativado.');
+ if(autoSkip&&started&&!over&&wave>0&&!spawnLeft&&enemies.length===0&&breakClock<=0)startWave();
+};
+$('play').onclick=()=>{
+ const cfg=difficultySettings[difficulty];cash=cfg.cash;lives=cfg.lives;
+ $('overlay').style.display='none';started=true;updateUI();
+ toast('Defesas online! Dificuldade: '+({easy:'Fácil',normal:'Médio',hard:'Difícil',impossible:'Impossível'}[difficulty])+'.');
+};
+function endGame(){if(over)return;over=true;$('overlay').style.display='grid';$('overlay').innerHTML=`<div class="modal"><div style="font-size:48px">💥</div><h1>BASE DESTRUÍDA</h1><p>Você chegou à onda ${wave}. Reforce suas defesas e tente de novo.</p><button class="primary" onclick="location.reload()">JOGAR NOVAMENTE</button></div>`}
+const clock=new THREE.Clock();let elapsed=0;
+function update(dt){if(!started||over)return;elapsed+=dt;
+ if(spawnLeft>0){spawnClock-=dt;if(spawnClock<=0){try{spawnEnemy();spawnLeft--;spawnClock=Math.max(.62,1.35-wave*.025)}catch(err){console.error('Falha ao criar inimigo:',err);toast('Erro ao criar inimigo: '+err.message);spawnLeft=0}}}
+ for(const e of enemies){if(e.dead)continue;e.dist+=e.speed*dt;const total=curve.getLength();if(e.dist>=total){e.dead=true;scene.remove(e.mesh);lives-=e.isBoss?5:(e.kind==='tank'||e.kind==='apc'?3:1);if(lives<=0)endGame();continue}const p=curve.getPointAt(Math.min(.9999,e.dist/total));const tangent=curve.getTangentAt(Math.min(.9999,e.dist/total));const altitude=e.kind==='heli'?2.15:(e.kind==='jet'||e.kind==='boss_ace'?3.0:(e.kind==='jetpack'?1.75:.16));
+ e.mesh.position.set(p.x,altitude+(e.airborne?Math.sin(elapsed*(e.kind==='jet'||e.kind==='boss_ace'?6:4)+e.phase)*.12:0),p.z);
+ e.mesh.rotation.y=Math.atan2(tangent.x,tangent.z);
+ if(e.kind==='heli'){if(e.mesh.userData.mainRotor)e.mesh.userData.mainRotor.rotation.y=elapsed*22;if(e.mesh.userData.tailRotor)e.mesh.userData.tailRotor.rotation.x=elapsed*27;}
+ if((e.kind==='jet'||e.kind==='boss_ace')&&e.mesh.userData.plane)e.mesh.rotation.z=Math.sin(elapsed*3+e.phase)*.025;
+ if(e.kind==='medic'){e.healClock-=dt;if(e.healClock<=0){for(const ally of enemies){if(ally!==e&&!ally.dead&&ally.hp<ally.max&&Math.hypot(ally.mesh.position.x-e.mesh.position.x,ally.mesh.position.z-e.mesh.position.z)<3.2)ally.hp=Math.min(ally.max,ally.hp+18)}e.healClock=2.0}}}
+ for(const t of towers){t.cool-=dt;if(t.mesh.userData.flying)t.mesh.position.y= .1+Math.sin(elapsed*2+t.phase)*.18;let candidates=[];for(const e of enemies){if(e.dead)continue;if(e.airborne&&t.type!=='flak'&&t.type!=='drone'&&t.type!=='sniper')continue;const d=Math.hypot(e.mesh.position.x-t.x,e.mesh.position.z-t.z);if(d<=t.range)candidates.push({e,d})}
+ let target=null;const priority=t.priority||'first';
+ if(candidates.length){if(priority==='last')candidates.sort((a,b)=>a.e.dist-b.e.dist);else if(priority==='strongest')candidates.sort((a,b)=>b.e.hp-a.e.hp);else if(priority==='weakest')candidates.sort((a,b)=>a.e.hp-b.e.hp);else candidates.sort((a,b)=>b.e.dist-a.e.dist);target=candidates[0].e}
+ if(target&&t.mesh.userData.aimPivot){
+   const pivot=t.mesh.userData.aimPivot;
+   const desired=Math.atan2(target.mesh.position.x-t.x,target.mesh.position.z-t.z);
+   let diff=(desired-pivot.rotation.y+Math.PI*3)%(Math.PI*2)-Math.PI;
+   pivot.rotation.y+=diff*Math.min(1,dt*9);
+ }
+ if(target&&t.cool<=0)shoot(t,target)}
+ for(let i=projectiles.length-1;i>=0;i--){const s=projectiles[i];if(s.target.dead){scene.remove(s.mesh);projectiles.splice(i,1);continue}const dest=s.target.mesh.position.clone().add(new THREE.Vector3(0,s.target.airborne?(s.target.kind==='jet'||s.target.kind==='boss_ace'?2.5:s.target.kind==='jetpack'?1.7:2.2):1,0));const delta=dest.sub(s.mesh.position);if(delta.length()<s.speed*dt+.18){if(s.aoe){for(const e of enemies){if(!e.dead&&e.mesh.position.distanceTo(s.target.mesh.position)<s.aoe)e.hp-=s.damage;if(!e.dead&&e.hp<=0)kill(e)}}else{s.target.hp-=s.damage;if(s.target.hp<=0)kill(s.target)}scene.remove(s.mesh);projectiles.splice(i,1)}else s.mesh.position.add(delta.normalize().multiplyScalar(s.speed*dt))}
+ for(let i=enemies.length-1;i>=0;i--)if(enemies[i].dead)enemies.splice(i,1);
+ if(!spawnLeft&&wave>0&&enemies.length===0&&!waveClearHandled){
+  waveClearHandled=true;breakClock=2.2;cash+=45;toast('Onda vencida! +45 sucata bônus.');
+ }
+ if(breakClock>0){
+  breakClock=Math.max(0,breakClock-dt);
+  if(breakClock===0){updateUI();if(autoSkip&&!over)startWave()}
+ }
+ if(elapsed-lastUI>.18){updateUI();lastUI=elapsed}
+}
+function resize(){const w=innerWidth,h=innerHeight;camera.aspect=w/h;camera.position.set(0,Math.max(25,33*(w/h<.8?1.22:1)),Math.max(24,31*(w/h<.8?1.18:1)));camera.lookAt(0,0,0);camera.updateProjectionMatrix();renderer.setSize(w,h)}
+resize();addEventListener('resize',resize);
+let last=performance.now();function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.04);last=now;update(dt);renderer.render(scene,camera)}requestAnimationFrame(frame);
+</script>
+</body></html>
